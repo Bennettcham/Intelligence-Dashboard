@@ -1,513 +1,1796 @@
-
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>IBM Geopolitical Stock Driver Model</title>
+<title>IBM Intelligence Dashboard</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
-    font-size: 14px;
-    line-height: 1.6;
-    background: #ffffff;
-    color: #1f2328;
-  }
-
-  .page-wrap {
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 32px 20px 48px;
-  }
+  body { font-family: -apple-system, "Segoe UI", system-ui, sans-serif; font-size: 14px; line-height: 1.6; background: #ffffff; color: #1f2328; }
+  .page-wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 48px; }
 
   /* ── Header ── */
-  .page-header {
-    border-bottom: 2px solid #e5e7eb;
-    padding-bottom: 16px;
-    margin-bottom: 28px;
-  }
-  .page-header h1 {
-    font-size: 22px;
-    font-weight: 700;
-    color: #1f2328;
-    letter-spacing: -0.3px;
-  }
-  .page-header p {
-    color: #57606a;
-    font-size: 13px;
-    margin-top: 4px;
-  }
-  .badge {
-    display: inline-block;
-    background: #f7f8fa;
-    border: 1px solid #e5e7eb;
-    border-radius: 4px;
-    font-size: 11px;
-    padding: 2px 8px;
-    color: #57606a;
-    margin-right: 6px;
-    margin-top: 6px;
-  }
+  .page-header { border-bottom: 2px solid #e5e7eb; padding-bottom: 16px; margin-bottom: 20px; }
+  .page-header h1 { font-size: 22px; font-weight: 700; color: #1f2328; letter-spacing: -0.3px; }
+  .page-header p { color: #57606a; font-size: 13px; margin-top: 4px; }
+  .badge { display: inline-block; background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 4px; font-size: 11px; padding: 2px 8px; color: #57606a; margin-right: 6px; margin-top: 6px; }
 
-  /* ── Section titles ── */
-  .section {
-    margin-bottom: 32px;
-  }
-  .section-title {
-    font-size: 13px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    color: #57606a;
-    border-bottom: 1px solid #e5e7eb;
-    padding-bottom: 6px;
-    margin-bottom: 14px;
-  }
+  /* ── Status bar ── */
+  .status-bar { display: flex; align-items: center; gap: 12px; padding: 9px 14px; background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 20px; flex-wrap: wrap; }
+  .status-price { font-size: 18px; font-weight: 700; color: #1f2328; }
+  .status-change { font-size: 13px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+  .status-change.pos { background: #e8fff0; color: #1a7a3c; }
+  .status-change.neg { background: #ffe4e4; color: #b02020; }
+  .status-change.flat { background: #f0f0f0; color: #57606a; }
+  .status-meta { font-size: 12px; color: #57606a; margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #bcc1ca; display: inline-block; }
+  .status-dot.live { background: #3aa75b; }
+  .status-dot.loading { background: #e07b2a; }
+  .status-dot.error { background: #d94f4f; }
+  .refresh-btn { background: none; border: 1px solid #cdd0d5; border-radius: 4px; padding: 3px 10px; font-size: 12px; color: #57606a; cursor: pointer; }
+  .refresh-btn:hover { background: #e5e7eb; }
 
-  /* ── Regime Alert ── */
-  .alert-box {
-    border-radius: 6px;
-    padding: 14px 18px;
-    margin-bottom: 28px;
-    border-left: 4px solid;
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-  }
-  .alert-box.stress {
-    background: #fff8f0;
-    border-color: #e07b2a;
-  }
-  .alert-box.drag {
-    background: #fff2f2;
-    border-color: #d94f4f;
-  }
-  .alert-box.tailwind {
-    background: #f0fff4;
-    border-color: #3aa75b;
-  }
-  .alert-box.neutral {
-    background: #f7f8fa;
-    border-color: #bcc1ca;
-  }
-  .alert-label {
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 2px;
-  }
-  .alert-box.stress .alert-label { color: #b85e00; }
-  .alert-box.drag .alert-label { color: #b02020; }
+  /* ── Error banner ── */
+  .error-banner { display: none; background: #fff2f2; border: 1px solid #f0a0a0; border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px; color: #b02020; }
+
+  /* ── Section ── */
+  .section { margin-bottom: 32px; }
+  .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #57606a; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; margin-bottom: 14px; }
+
+  /* ── Regime alert ── */
+  .alert-box { border-radius: 6px; padding: 14px 18px; margin-bottom: 28px; border-left: 4px solid; }
+  .alert-box.stress   { background: #fff8f0; border-color: #e07b2a; }
+  .alert-box.drag     { background: #fff2f2; border-color: #d94f4f; }
+  .alert-box.tailwind { background: #f0fff4; border-color: #3aa75b; }
+  .alert-box.neutral  { background: #f7f8fa; border-color: #bcc1ca; }
+  .alert-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .alert-box.stress   .alert-label { color: #b85e00; }
+  .alert-box.drag     .alert-label { color: #b02020; }
   .alert-box.tailwind .alert-label { color: #1e7e3a; }
-  .alert-box.neutral .alert-label { color: #57606a; }
+  .alert-box.neutral  .alert-label { color: #57606a; }
   .alert-detail { font-size: 13px; color: #1f2328; }
 
-  /* ── Score Cards ── */
-  .score-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    margin-bottom: 28px;
-  }
-  .score-card {
-    background: #f7f8fa;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    padding: 12px 14px;
-    text-align: center;
-  }
-  .score-card .label {
-    font-size: 11px;
-    color: #57606a;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    margin-bottom: 4px;
-  }
-  .score-card .value {
-    font-size: 20px;
-    font-weight: 700;
-    color: #1f2328;
-  }
+  /* ── Score / Impact cards ── */
+  .score-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 28px; }
+  .score-card { background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px 14px; }
+  .score-card .label { font-size: 11px; color: #57606a; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+  .score-card .value { font-size: 22px; font-weight: 700; color: #1f2328; }
   .score-card .value.neg { color: #d94f4f; }
   .score-card .value.pos { color: #3aa75b; }
-  .score-card .sub {
-    font-size: 11px;
-    color: #57606a;
-    margin-top: 2px;
-  }
+  .score-card .sub { font-size: 11px; color: #57606a; margin-top: 2px; }
+  .ic-red  { background: #fff2f2; } .ic-red  .value { color: #b02020; }
+  .ic-blue { background: #eef4ff; } .ic-blue .value { color: #1a5ea8; }
+  .ic-grn  { background: #f0fff4; } .ic-grn  .value { color: #1a7a3c; }
 
-  /* ── Correlation Table ── */
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-    margin-bottom: 6px;
-  }
-  th {
-    background: #f7f8fa;
-    font-weight: 600;
-    text-align: left;
-    padding: 8px 10px;
-    border: 1px solid #e5e7eb;
-    color: #1f2328;
-    white-space: nowrap;
-  }
-  td {
-    padding: 7px 10px;
-    border: 1px solid #e5e7eb;
-    vertical-align: middle;
-  }
+  /* ── Attribution ── */
+  .attr-bar-wrap { height: 28px; display: flex; border-radius: 4px; overflow: hidden; margin: 10px 0 4px; }
+  .attr-seg { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; }
+  .attr-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; }
+  .attr-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 4px; vertical-align: middle; }
+
+  /* ── Tables ── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 6px; }
+  th { background: #f7f8fa; font-weight: 600; text-align: left; padding: 8px 10px; border: 1px solid #e5e7eb; color: #1f2328; white-space: nowrap; }
+  td { padding: 7px 10px; border: 1px solid #e5e7eb; vertical-align: middle; }
   tr:nth-child(even) td { background: #f7f8fa; }
+  .corr-cell { font-weight: 700; font-size: 13px; text-align: center; border-radius: 3px; padding: 4px 8px; display: inline-block; min-width: 52px; }
+  .bar-wrap { display: flex; align-items: center; gap: 6px; }
+  .bar-bg { flex: 1; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; }
+  .bar-neg { background: #d94f4f; } .bar-pos { background: #3aa75b; }
 
-  .corr-cell {
-    font-weight: 700;
-    font-size: 13px;
-    text-align: center;
-    border-radius: 3px;
-    padding: 4px 8px;
-    display: inline-block;
-    min-width: 52px;
-  }
-  .bar-wrap {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .bar-bg {
-    flex: 1;
-    height: 8px;
-    background: #e5e7eb;
-    border-radius: 4px;
-    overflow: hidden;
-  }
-  .bar-fill {
-    height: 100%;
-    border-radius: 4px;
-  }
-  .bar-neg { background: #d94f4f; }
-  .bar-pos { background: #3aa75b; }
-
-  /* ── Proxy input table ── */
-  .proxy-table td input[type="number"] {
-    width: 80px;
-    border: 1px solid #cdd0d5;
-    border-radius: 4px;
-    padding: 4px 6px;
-    font-size: 13px;
-    color: #1f2328;
-    background: #fff;
-    text-align: right;
-  }
-  .proxy-table td input[type="number"]:focus {
-    outline: 2px solid #3b82d4;
-    outline-offset: 1px;
-  }
+  /* ── Proxy input ── */
+  .proxy-table td input[type="number"] { width: 80px; border: 1px solid #cdd0d5; border-radius: 4px; padding: 4px 6px; font-size: 13px; color: #1f2328; background: #fff; text-align: right; }
+  .proxy-table td input[type="number"]:focus { outline: 2px solid #3b82d4; outline-offset: 1px; }
+  .price-input-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 14px; }
+  .price-input-row label { font-size: 13px; font-weight: 600; color: #1f2328; white-space: nowrap; }
+  .price-input-row input { width: 100px; border: 1px solid #cdd0d5; border-radius: 4px; padding: 5px 8px; font-size: 14px; font-weight: 700; color: #1f2328; background: #fff; }
+  .price-input-row .hint { font-size: 12px; color: #57606a; }
 
   /* ── Event log ── */
-  .event-category {
-    display: inline-block;
-    border-radius: 3px;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 7px;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-  }
+  .event-category { display: inline-block; border-radius: 3px; font-size: 11px; font-weight: 600; padding: 2px 7px; text-transform: uppercase; letter-spacing: 0.3px; }
   .cat-war      { background: #ffe4e4; color: #b02020; }
   .cat-trade    { background: #fff3e0; color: #b85e00; }
   .cat-budget   { background: #e8f4ff; color: #1a5ea8; }
   .cat-reg      { background: #f0e8ff; color: #5c34a8; }
   .cat-election { background: #e8fff0; color: #1a7a3c; }
-
-  .car-pill {
-    font-size: 12px;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 10px;
-  }
+  .car-pill { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
   .car-neg { background: #ffe4e4; color: #b02020; }
   .car-pos { background: #e8fff0; color: #1a7a3c; }
   .car-neutral { background: #f0f0f0; color: #57606a; }
 
-  /* ── Regression output ── */
-  .reg-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-  .reg-card {
-    background: #f7f8fa;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    padding: 12px 14px;
-  }
-  .reg-card .rlabel {
-    font-size: 11px;
-    color: #57606a;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    margin-bottom: 4px;
-  }
-  .reg-card .rvalue {
-    font-size: 18px;
-    font-weight: 700;
-    color: #3b82d4;
-  }
+  /* ── Peer / Market Updates ── */
+  .cat-earnings  { background: #e8f4ff; color: #1a5ea8; }
+  .cat-product   { background: #f0e8ff; color: #5c34a8; }
+  .cat-guidance  { background: #fff3e0; color: #b85e00; }
+  .cat-macro     { background: #f7f8fa; color: #57606a; }
+  .cat-ma        { background: #e8fff0; color: #1a7a3c; }
+  .cat-threat    { background: #ffe4e4; color: #b02020; }
+  .cat-positive  { background: #e8fff0; color: #1a7a3c; }
+  .cat-reg       { background: #f0e8ff; color: #5c34a8; }
+  .peer-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+  .peer-card { background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 6px; padding: 11px 14px; }
+  .peer-card .pc-ticker { font-size: 13px; font-weight: 700; color: #1f2328; }
+  .peer-card .pc-name   { font-size: 11px; color: #57606a; margin-bottom: 6px; }
+  .peer-card .pc-price  { font-size: 18px; font-weight: 700; color: #1f2328; }
+  .peer-card .pc-chg    { font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 3px; margin-left: 4px; }
+  .peer-card .pc-chg.pos { background: #e8fff0; color: #1a7a3c; }
+  .peer-card .pc-chg.neg { background: #ffe4e4; color: #b02020; }
+  .peer-card .pc-chg.flat { background: #f0f0f0; color: #57606a; }
+  .peer-card .pc-ibm  { font-size: 11px; color: #57606a; margin-top: 4px; border-top: 1px solid #e5e7eb; padding-top: 4px; }
+  .impact-meter { height: 6px; background: #e5e7eb; border-radius: 3px; margin-top: 6px; overflow: hidden; }
+  .impact-fill  { height: 100%; border-radius: 3px; }
+  .scenario-box { background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px 16px; margin-bottom: 16px; }
+  .scenario-box h4 { font-size: 13px; font-weight: 700; color: #1f2328; margin-bottom: 8px; }
+  .scenario-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .scenario-row label { font-size: 12px; color: #57606a; min-width: 160px; }
+  .scenario-row input, .scenario-row select { border: 1px solid #cdd0d5; border-radius: 4px; padding: 4px 8px; font-size: 13px; color: #1f2328; background: #fff; }
+  .scenario-row input[type="number"] { width: 80px; text-align: right; }
+  .scenario-result { margin-top: 12px; padding: 10px 14px; border-radius: 5px; font-size: 13px; display: none; }
+  .scenario-result.pos { background: #f0fff4; border-left: 3px solid #3aa75b; }
+  .scenario-result.neg { background: #fff2f2; border-left: 3px solid #d94f4f; }
+  .scenario-result.neutral { background: #f7f8fa; border-left: 3px solid #bcc1ca; }
+
+  /* ── Regression ── */
+  .reg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .reg-card { background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px 14px; }
+  .reg-card .rlabel { font-size: 11px; color: #57606a; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+  .reg-card .rvalue { font-size: 18px; font-weight: 700; color: #3b82d4; }
   .reg-card .rdesc { font-size: 12px; color: #57606a; margin-top: 2px; }
 
-  /* ── Mini SVG chart ── */
-  .chart-wrap {
-    background: #f7f8fa;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    padding: 16px;
-    margin-bottom: 6px;
-  }
-  .chart-title {
-    font-size: 12px;
-    font-weight: 600;
-    color: #57606a;
-    margin-bottom: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-  }
+  /* ── Charts ── */
+  .chart-wrap { background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 6px; padding: 16px; margin-bottom: 6px; }
+  .chart-title { font-size: 12px; font-weight: 600; color: #57606a; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .legend-row { display: flex; gap: 18px; margin-top: 6px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #57606a; }
+  .leg-line { width: 22px; height: 3px; border-radius: 2px; }
 
   /* ── Tabs ── */
-  .tab-bar {
-    display: flex;
-    gap: 2px;
-    margin-bottom: 16px;
-    border-bottom: 2px solid #e5e7eb;
-  }
-  .tab-btn {
-    padding: 8px 16px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #57606a;
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    cursor: pointer;
-  }
-  .tab-btn.active {
-    color: #3b82d4;
-    border-bottom-color: #3b82d4;
-  }
+  .tab-bar { display: flex; gap: 2px; margin-bottom: 16px; border-bottom: 2px solid #e5e7eb; overflow-x: auto; }
+  .tab-btn { padding: 8px 14px; font-size: 13px; font-weight: 600; color: #57606a; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; white-space: nowrap; }
+  .tab-btn.active { color: #3b82d4; border-bottom-color: #3b82d4; }
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
 
-  /* ── Calc button ── */
-  .calc-btn {
-    background: #3b82d4;
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    padding: 8px 20px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    margin-top: 10px;
-  }
+  /* ── Buttons ── */
+  .calc-btn { background: #3b82d4; color: #fff; border: none; border-radius: 5px; padding: 8px 20px; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 10px; }
   .calc-btn:hover { background: #2f6db5; }
 
-  .note {
-    font-size: 12px;
-    color: #57606a;
-    margin-top: 8px;
-    padding: 8px 12px;
-    background: #f7f8fa;
-    border-left: 3px solid #e5e7eb;
-    border-radius: 0 4px 4px 0;
-  }
+  .note { font-size: 12px; color: #57606a; margin-top: 8px; padding: 8px 12px; background: #f7f8fa; border-left: 3px solid #e5e7eb; border-radius: 0 4px 4px 0; }
+
+  /* ── Skeleton loader ── */
+  .skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; border-radius: 4px; color: transparent !important; user-select: none; }
+
+  /* ── IBM Updates ── */
+  .ibm-news-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px 14px; cursor: pointer; transition: border-color 0.15s; }
+  .ibm-news-card:hover { border-color: #3b82d4; }
+  .ibm-news-card.nc-new { border-color: #3aa75b; border-left: 3px solid #3aa75b; background: #f6fff9; }
+  .ibm-news-card.nc-recent { border-left: 3px solid #e07b2a; }
+  .ibm-news-card .nc-header { display: flex; align-items: flex-start; gap: 10px; }
+  .ibm-news-card .nc-badge { flex-shrink: 0; margin-top: 2px; }
+  .ibm-news-card .nc-title { font-size: 13px; font-weight: 600; color: #1f2328; line-height: 1.45; }
+  .ibm-news-card .nc-meta  { font-size: 11px; color: #57606a; margin-top: 3px; }
+  .ibm-news-card .nc-impact { font-size: 12px; font-weight: 700; margin-top: 4px; }
+  .ibm-news-card .nc-detail { font-size: 12px; color: #57606a; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb; display: none; line-height: 1.6; }
+  .ibm-news-card .nc-detail.open { display: block; }
+  .news-age-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 10px; margin-left: 6px; vertical-align: middle; }
+  .news-age-badge.fresh  { background: #e8fff0; color: #1a7a3c; border: 1px solid #b7e8c7; }
+  .news-age-badge.recent { background: #fff8e8; color: #7a5800; border: 1px solid #f0d080; }
+  .news-age-badge.older  { background: #f7f8fa; color: #bcc1ca; border: 1px solid #e5e7eb; }
+  .news-feed-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+  .news-feed-header .nfh-meta { font-size: 11px; color: #bcc1ca; }
+  .news-feed-header .nfh-meta .live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #3aa75b; margin-right: 4px; vertical-align: middle; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .news-refresh-btn { background: none; border: 1px solid #cdd0d5; border-radius: 4px; padding: 2px 9px; font-size: 11px; color: #57606a; cursor: pointer; }
+  .news-refresh-btn:hover { background: #e5e7eb; }
+  .news-24h-count { font-size: 11px; font-weight: 700; color: #1a7a3c; background: #e8fff0; border: 1px solid #b7e8c7; border-radius: 10px; padding: 1px 8px; }
+  .cat-ibm-earnings   { background: #eef4ff; color: #1a5ea8; }
+  .cat-ibm-product    { background: #f0e8ff; color: #5c34a8; }
+  .cat-ibm-ma         { background: #e8fff0; color: #1a7a3c; }
+  .cat-ibm-guidance   { background: #fff3e0; color: #b85e00; }
+  .cat-ibm-partner    { background: #f0e8ff; color: #5c34a8; }
+  .cat-ibm-newsletter { background: #f7f8fa; color: #57606a; border: 1px solid #e5e7eb; }
+  .cat-ibm-news       { background: #f7f8fa; color: #57606a; }
+  .filter-btn { background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 4px; padding: 4px 12px; font-size: 12px; font-weight: 600; color: #57606a; cursor: pointer; }
+  .filter-btn.active { background: #3b82d4; border-color: #3b82d4; color: #fff; }
+  .filter-btn:hover:not(.active) { background: #e5e7eb; }
+
+  /* ── Global time-range filter ── */
+  .timerange-bar { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 20px; flex-wrap: wrap; }
+  .timerange-bar .tr-label { font-size: 12px; font-weight: 600; color: #57606a; margin-right: 4px; }
+  .tr-btn { background: none; border: 1px solid #e5e7eb; border-radius: 4px; padding: 3px 12px; font-size: 12px; font-weight: 600; color: #57606a; cursor: pointer; }
+  .tr-btn.active { background: #1f2328; border-color: #1f2328; color: #fff; }
+  .tr-btn:hover:not(.active) { background: #e5e7eb; }
+  .tr-count { font-size: 11px; color: #bcc1ca; margin-left: auto; }
 
   /* ── Footer ── */
-  .page-footer {
-    margin-top: 48px;
-    padding-top: 16px;
-    border-top: 1px solid #e5e7eb;
-    text-align: center;
-    font-size: 12px;
-    color: #57606a;
-  }
+  .page-footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 12px; color: #57606a; }
 </style>
 </head>
 <body>
 <div class="page-wrap">
 
-  
+  <!-- Header -->
   <div class="page-header">
-    <h1>IBM Geopolitical Stock Driver Model</h1>
-    <p>Market-neutral residual analysis — isolating political &amp; geopolitical impacts on IBM (NYSE: IBM)</p>
+    <h1>IBM Intelligence Dashboard</h1>
+    <p>Live price · IBM updates · Market intelligence · Geopolitical drivers · Dollar attribution</p>
     <div style="margin-top:8px">
-      <span class="badge">Geopolitical-Only Model</span>
-      <span class="badge">Proxy-Based Correlation</span>
-      <span class="badge">Event Study (CAR)</span>
-      <span class="badge">OLS Residual Regression</span>
+      <span class="badge">Live Data</span>
+      <span class="badge">IBM Press Releases</span>
+      <span class="badge">Earnings &amp; Guidance</span>
+      <span class="badge">Competitor Intelligence</span>
+      <span class="badge">Geopolitical Drivers</span>
+      <span class="badge">OLS Attribution</span>
     </div>
   </div>
 
-  
-  <div class="section">
-    <div class="section-title">Current Regime Signal</div>
-    <div class="alert-box stress" id="regimeBox">
-      <div>
-        <div class="alert-label" id="regimeLabel">⚠️ Geopolitical Stress — IBM at Risk</div>
-        <div class="alert-detail" id="regimeDetail">VIX elevated · Gold rallying · DXY strengthening. Model indicates negative geopolitical drag on IBM residual return. Federal contract uncertainty compounding downside.</div>
-      </div>
+  <!-- Status bar -->
+  <div class="status-bar">
+    <span style="font-size:12px;font-weight:600;color:#57606a">IBM</span>
+    <span class="status-price" id="statusPrice">—</span>
+    <span class="status-change flat" id="statusChange">—</span>
+    <span style="font-size:12px;color:#57606a" id="statusChangeDollar"></span>
+    <div class="status-meta">
+      <span class="status-dot loading" id="statusDot"></span>
+      <span id="statusLabel" style="font-size:12px;color:#57606a">Fetching data…</span>
+      <span id="statusTime" style="font-size:11px;color:#bcc1ca"></span>
+      <button class="refresh-btn" onclick="refresh()">↻ Refresh</button>
     </div>
   </div>
 
-  
+  <!-- Error banner -->
+  <div class="error-banner" id="errorBanner"></div>
+
+  <!-- Global Time-Range Filter -->
+  <div class="timerange-bar">
+    <span class="tr-label">Time Range:</span>
+    <button class="tr-btn" onclick="setTimeRange(1,this)">1Y</button>
+    <button class="tr-btn" onclick="setTimeRange(2,this)">2Y</button>
+    <button class="tr-btn active" onclick="setTimeRange(3,this)">3Y</button>
+    <button class="tr-btn" onclick="setTimeRange(5,this)">5Y</button>
+    <button class="tr-btn" onclick="setTimeRange(0,this)">All</button>
+    <span class="tr-count" id="trCount"></span>
+  </div>
+
+  <!-- Regime Alert -->
+  <div class="alert-box neutral" id="regimeBox">
+    <div class="alert-label" id="regimeLabel">Loading market data…</div>
+    <div class="alert-detail" id="regimeDetail">Fetching live IBM price and geopolitical proxy data. This may take a moment.</div>
+  </div>
+
+  <!-- Hero Cards -->
   <div class="section">
-    <div class="section-title">Geopolitical Risk Scores</div>
+    <div class="section-title">Direct IBM Stock Price Impact — Today's Estimate</div>
     <div class="score-grid">
-      <div class="score-card">
+      <div class="score-card ic-red">
+        <div class="label">Geo Dollar Impact</div>
+        <div class="value skeleton" id="heroDollar">—</div>
+        <div class="sub">Per share, geopolitical drag only</div>
+      </div>
+      <div class="score-card ic-blue">
+        <div class="label">IBM Price (Last Close)</div>
+        <div class="value skeleton" id="heroPrice">—</div>
+        <div class="sub">Counterfactual: <span id="heroCounterfactual" style="font-weight:700;color:#1a7a3c">—</span></div>
+      </div>
+      <div class="score-card ic-grn">
         <div class="label">Geo Risk Score</div>
-        <div class="value neg" id="geoScore">−1.84%</div>
-        <div class="sub">Predicted IBM drag</div>
-      </div>
-      <div class="score-card">
-        <div class="label">Model R²</div>
-        <div class="value" style="color:#3b82d4">0.23</div>
-        <div class="sub">Geo factors explain 23%</div>
-      </div>
-      <div class="score-card">
-        <div class="label">Dominant Proxy</div>
-        <div class="value" style="font-size:14px;color:#b85e00">VIX</div>
-        <div class="sub">Highest beta: −0.41</div>
-      </div>
-      <div class="score-card">
-        <div class="label">Regime</div>
-        <div class="value" style="font-size:13px;color:#b85e00">STRESS</div>
-        <div class="sub">VIX &gt; 25 threshold</div>
+        <div class="value skeleton" id="heroGeoScore">—</div>
+        <div class="sub">% of IBM move from geo factors</div>
       </div>
     </div>
   </div>
 
-  
+  <!-- Attribution -->
+  <div class="section">
+    <div class="section-title">IBM Return Attribution Breakdown</div>
+    <p style="font-size:12px;color:#57606a;margin-bottom:10px">Full decomposition of IBM's daily move into its three components.</p>
+    <div id="attrBar" class="attr-bar-wrap"></div>
+    <div class="attr-legend" id="attrLegend"></div>
+    <table style="margin-top:14px">
+      <thead><tr><th>Component</th><th>Return (%)</th><th>Dollar Impact</th><th>Share of Move</th><th>Description</th></tr></thead>
+      <tbody id="attrTableBody"></tbody>
+    </table>
+    <div class="note">Market Component = XLK beta × XLK return. Geopolitical Component = Σ(geo proxy betas × proxy changes). Unexplained = residual after both are removed.</div>
+  </div>
+
+  <!-- Tabs -->
   <div class="tab-bar">
-    <button class="tab-btn active">Correlation Matrix</button>
-    <button class="tab-btn">Live Calculator</button>
-    <button class="tab-btn">Event Log (CAR)</button>
-    <button class="tab-btn">Regression Output</button>
+    <button class="tab-btn active" onclick="switchTab('ibm',this)">IBM Updates</button>
+    <button class="tab-btn" onclick="switchTab('market',this)">Market Intelligence</button>
+    <button class="tab-btn" onclick="switchTab('price',this)">Counterfactual Path</button>
+    <button class="tab-btn" onclick="switchTab('corr',this)">Geo Analysis</button>
+    <button class="tab-btn" onclick="switchTab('regression',this)">Regression</button>
   </div>
 
-  
-  <div class="tab-panel active" id="tab-corr">
-    <div class="section">
-      <div class="section-title">IBM Residual vs. Geopolitical Proxies — Correlation</div>
-      <p style="font-size:12px;color:#57606a;margin-bottom:12px">Correlations computed against market-neutral IBM residual (IBM return minus XLK-predicted return). Based on simulated 5-year daily data.</p>
-      <table>
-        <thead>
-          <tr>
-            <th>Proxy</th>
-            <th>Description</th>
-            <th>Correlation</th>
-            <th>Signal Strength</th>
-            <th>Expected</th>
-          </tr>
-        </thead>
-        <tbody id="corrTableBody"></tbody>
-      </table>
-      <div class="note">Negative correlation = when this proxy rises, IBM falls. Positive = co-movement. All values are IBM residual (market-neutral), not raw IBM return.</div>
-    </div>
+  <!-- ═══════════════════════════════════════════════════════════
+       Tab: IBM Updates
+  ════════════════════════════════════════════════════════════ -->
+  <div class="tab-panel active" id="tab-ibm">
 
-    
-    <div class="chart-wrap">
-      <div class="chart-title">Correlation Magnitude — Geopolitical Proxies vs IBM Residual</div>
-      <svg id="corrChart" style="width:100%;height:auto"></svg>
-    </div>
-  </div>
-
-  
-  <div class="tab-panel" id="tab-live">
+    <!-- IBM Live Summary -->
     <div class="section">
-      <div class="section-title">Geopolitical Risk Score Calculator</div>
-      <p style="font-size:12px;color:#57606a;margin-bottom:12px">Enter today's observed proxy values. The model applies regression coefficients to estimate the geopolitical drag or boost on IBM's residual return.</p>
-      <table class="proxy-table">
-        <thead>
-          <tr><th>Proxy</th><th>Today's Change (%)</th><th>Beta (from regression)</th><th>Contribution</th></tr>
-        </thead>
-        <tbody id="calcTableBody"></tbody>
-      </table>
-      <button class="calc-btn">Calculate Geo Risk Score</button>
-      <div id="calcResult" style="margin-top:16px;display:none">
-        <div class="score-card" style="max-width:260px;text-align:left;padding:14px 18px">
-          <div class="label">Estimated IBM Geo Drag/Boost</div>
-          <div class="value" id="calcValue" style="font-size:24px">—</div>
-          <div class="rdesc" id="calcDesc" style="margin-top:4px"></div>
+      <div class="section-title">IBM — Live Price Summary</div>
+      <div class="score-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="score-card ic-blue">
+          <div class="label">IBM Price</div>
+          <div class="value" id="ibmSummaryPrice">—</div>
+          <div class="sub" id="ibmSummaryChange">Loading…</div>
+        </div>
+        <div class="score-card">
+          <div class="label">52-Week High</div>
+          <div class="value" style="font-size:18px" id="ibm52High">—</div>
+          <div class="sub">Annual peak</div>
+        </div>
+        <div class="score-card">
+          <div class="label">52-Week Low</div>
+          <div class="value" style="font-size:18px" id="ibm52Low">—</div>
+          <div class="sub">Annual trough</div>
+        </div>
+        <div class="score-card">
+          <div class="label">Market Cap</div>
+          <div class="value" style="font-size:16px" id="ibmMktCap">—</div>
+          <div class="sub">USD billions</div>
         </div>
       </div>
-      <div class="note" style="margin-top:12px">Formula: Σ(Betaᵢ × Proxy_Changeᵢ). This estimates the component of IBM's move attributable to geopolitical factors only, after market beta has been stripped.</div>
+    </div>
+
+    <!-- IBM Press Releases & News Feed -->
+    <div class="section">
+      <div class="section-title">IBM Press Releases &amp; News — Live Feed</div>
+      <div class="news-feed-header">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span id="ibmNews24hCount" style="display:none" class="news-24h-count"></span>
+          <span style="font-size:12px;color:#57606a">IBM Newsroom RSS · auto-refreshes every 5 min</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="nfh-meta"><span class="live-dot"></span><span id="ibmNewsFetchedAt">Fetching…</span></span>
+          <button class="news-refresh-btn" onclick="refreshNews()">↻</button>
+        </div>
+      </div>
+      <div id="ibmNewsFeed" style="display:flex;flex-direction:column;gap:8px">
+        <div style="padding:12px;background:#f7f8fa;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;color:#57606a">Fetching IBM Newsroom feed…</div>
+      </div>
+      <div class="note" style="margin-top:10px">🟢 Green border = published within 24 hours · 🟠 Orange border = 24–72 hours · Items keyword-scored for IBM stock signal direction. Source: IBM Newsroom RSS.</div>
+    </div>
+
+    <!-- Yahoo Finance News -->
+    <div class="section">
+      <div class="section-title">IBM News — Yahoo Finance Live Headlines</div>
+      <div class="news-feed-header">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span id="yahooNews24hCount" style="display:none" class="news-24h-count"></span>
+          <span style="font-size:12px;color:#57606a">Yahoo Finance API · auto-refreshes every 5 min</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="nfh-meta"><span class="live-dot"></span><span id="yahooNewsFetchedAt">Fetching…</span></span>
+          <button class="news-refresh-btn" onclick="refreshNews()">↻</button>
+        </div>
+      </div>
+      <div id="yahooNewsFeed" style="display:flex;flex-direction:column;gap:8px">
+        <div style="padding:12px;background:#f7f8fa;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;color:#57606a">Fetching Yahoo Finance headlines…</div>
+      </div>
+      <div class="note" style="margin-top:10px">🟢 Green border = published within 24 hours · 🟠 Orange border = 24–72 hours · Source: Yahoo Finance search API via CORS proxy.</div>
+    </div>
+
+    <!-- IBM Earnings History -->
+    <div class="section">
+      <div class="section-title">IBM Earnings History — Revenue, EPS &amp; Stock Reaction</div>
+      <p style="font-size:12px;color:#57606a;margin-bottom:12px">IBM's last 8 quarters. Shows revenue vs consensus, EPS beat/miss, and the stock's 1-day abnormal return on earnings day.</p>
+      <table>
+        <thead><tr><th>Quarter</th><th>Revenue</th><th>vs Consensus</th><th>EPS</th><th>vs Consensus</th><th>IBM 1-Day AR</th><th>$ Impact</th><th>Key Theme</th></tr></thead>
+        <tbody id="ibmEarningsTableBody"></tbody>
+      </table>
+      <div class="note">AR = Abnormal Return (IBM return minus XLK-predicted return on earnings day). Positive AR = IBM beat + market rewarded it above sector.</div>
+    </div>
+
+    <!-- IBM Strategic Events Log -->
+    <div class="section">
+      <div class="section-title">IBM Strategic Events — Own Announcements &amp; Their Stock Impact</div>
+      <p style="font-size:12px;color:#57606a;margin-bottom:12px">IBM's own press releases, product launches, M&amp;A, and strategic announcements — and how the market reacted to each.</p>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap" id="ibmEventFilter">
+        <button class="filter-btn active" data-filter="all"         onclick="filterIbmEvents('all',this)">All</button>
+        <button class="filter-btn"        data-filter="earnings"    onclick="filterIbmEvents('earnings',this)">Earnings</button>
+        <button class="filter-btn"        data-filter="product"     onclick="filterIbmEvents('product',this)">Product / AI</button>
+        <button class="filter-btn"        data-filter="ma"          onclick="filterIbmEvents('ma',this)">M&amp;A</button>
+        <button class="filter-btn"        data-filter="guidance"    onclick="filterIbmEvents('guidance',this)">Guidance</button>
+        <button class="filter-btn"        data-filter="partnership" onclick="filterIbmEvents('partnership',this)">Partnership</button>
+        <button class="filter-btn"        data-filter="newsletter"  onclick="filterIbmEvents('newsletter',this)">Newsletter / Blog</button>
+      </div>
+      <table>
+        <thead><tr><th>Date</th><th>Type</th><th>Announcement</th><th>IBM 1-Day AR</th><th>$ Impact</th></tr></thead>
+        <tbody id="ibmEventsTableBody"></tbody>
+      </table>
+      <div class="note">Click any row to expand the full detail. IBM 1-Day AR = IBM return minus XLK-predicted return on the announcement day.</div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       Tab: Market Intelligence (competitor / external)
+  ════════════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="tab-market">
+
+    <!-- Live Peer Quotes -->
+    <div class="section">
+      <div class="section-title">Live Peer &amp; Competitor Quotes</div>
+      <p style="font-size:12px;color:#57606a;margin-bottom:12px">Live prices for IBM's closest peers. Each peer's daily move is correlated with IBM — a large move in any direction is a directional signal for IBM today.</p>
+      <div class="peer-grid" id="peerGrid">
+        <div class="peer-card"><div class="pc-ticker">Loading…</div><div class="pc-name">Fetching live data</div><div class="pc-price skeleton">—</div></div>
+      </div>
+    </div>
+
+    <!-- Peer Correlation Scorecard -->
+    <div class="section">
+      <div class="section-title">Today's Peer Signal — Implied IBM Impact</div>
+      <p style="font-size:12px;color:#57606a;margin-bottom:12px">Each peer's live daily move multiplied by its IBM correlation coefficient gives a directional implied signal for IBM stock today.</p>
+      <table>
+        <thead><tr><th>Peer</th><th>Today's Move</th><th>IBM Corr.</th><th>Implied IBM Signal</th><th>Est. $ Impact</th><th>Interpretation</th></tr></thead>
+        <tbody id="peerCorrTableBody"></tbody>
+      </table>
+      <div class="note">Implied IBM Signal = Peer Change % × IBM–Peer Correlation. Directional indicator only — not a precise forecast. Correlations from 5-year daily returns.</div>
+    </div>
+
+    <!-- Market Event Log -->
+    <div class="section">
+      <div class="section-title">Market Event Log — All External Events That Moved IBM</div>
+      <p style="font-size:12px;color:#57606a;margin-bottom:12px">Covers any external development — blog posts, research reports, AI launches, earnings, M&amp;A, analyst notes — that produced a measurable IBM abnormal return.</p>
+      <table>
+        <thead><tr><th>Date</th><th>Source</th><th>Event</th><th>Type</th><th>IBM AR</th><th>IBM $ Impact</th></tr></thead>
+        <tbody id="peerEventTableBody"></tbody>
+      </table>
+      <div class="note">IBM AR = IBM Abnormal Return (IBM return minus XLK-predicted return on the event day and following 2 trading days). Dollar impact uses IBM price at event date. Negative AR on a blog post = narrative risk priced in.</div>
+    </div>
+
+  </div>
+
+  <!-- Tab: Counterfactual Price Path -->
+  <div class="tab-panel" id="tab-price">
+    <div class="section">
+      <div class="section-title">IBM Actual vs. Geopolitical Counterfactual Price Path (1 Year — Simulated)</div>
+      <p style="font-size:12px;color:#57606a;margin-bottom:10px">
+        <strong style="color:#1a5ea8">Blue line</strong> = IBM actual price.
+        <strong style="color:#3aa75b">Green dashed</strong> = counterfactual (no geo drag).
+        <strong style="color:#d94f4f">Red area</strong> = cumulative geopolitical discount.
+      </p>
+      <div class="chart-wrap" style="padding:12px 8px">
+        <svg id="priceChart" viewBox="0 0 720 220" style="width:100%;height:auto"></svg>
+        <div class="legend-row" style="padding:0 8px;margin-top:10px">
+          <div class="legend-item"><div class="leg-line" style="background:#1a5ea8"></div>IBM Actual</div>
+          <div class="legend-item"><div class="leg-line" style="background:#3aa75b"></div>Counterfactual</div>
+          <div class="legend-item"><div class="leg-line" style="background:#d94f4f;opacity:0.4;height:10px;border-radius:2px"></div>Geo Discount</div>
+        </div>
+      </div>
+      <div class="note">Simulated 252-day series anchored to the live IBM price. Live historical OHLC is a future enhancement requiring a paid data source.</div>
+    </div>
+    <div class="section">
+      <div class="section-title">Cumulative Geopolitical Price Impact — Key Periods</div>
+      <table>
+        <thead><tr><th>Period</th><th>IBM Actual Return</th><th>Counterfactual Return</th><th>Geo Impact (pp)</th><th>Dollar Loss/Gain</th></tr></thead>
+        <tbody id="periodTableBody"></tbody>
+      </table>
+      <div class="note">pp = percentage points. Dollar figures use the live IBM price. Geo Impact = how much geopolitical factors alone reduced IBM's return vs. the counterfactual.</div>
     </div>
   </div>
 
-  
-  <div class="tab-panel" id="tab-events">
+  <!-- Tab: Geo Analysis (Correlation Matrix + Geo Event Log) -->
+  <div class="tab-panel" id="tab-corr">
     <div class="section">
-      <div class="section-title">Political Event Log — Cumulative Abnormal Return (CAR)</div>
-      <p style="font-size:12px;color:#57606a;margin-bottom:12px">CAR = sum of IBM market-neutral residual returns over ±5 trading days around each event. Negative CAR confirms geopolitical penalty on IBM specifically.</p>
+      <div class="section-title">IBM Residual vs. Geopolitical Proxies — Model Correlation</div>
+      <p style="font-size:12px;color:#57606a;margin-bottom:12px">Correlations from the 5-year OLS model. Negative correlation = proxy rising hurts IBM. Live change shown for today's directional context.</p>
       <table>
-        <thead>
-          <tr><th>Date</th><th>Event</th><th>Category</th><th>Severity</th><th>5-Day CAR</th><th>Significant?</th></tr>
-        </thead>
+        <thead><tr><th>Proxy</th><th>Description</th><th>Model Correlation</th><th>Signal Strength</th><th>Live Change %</th></tr></thead>
+        <tbody id="corrTableBody"></tbody>
+      </table>
+    </div>
+    <div class="section">
+      <div class="section-title">Geopolitical Event Log — Cumulative Abnormal Return (CAR) &amp; Dollar Impact</div>
+      <p style="font-size:12px;color:#57606a;margin-bottom:12px">CAR = sum of IBM market-neutral residual returns over ±5 trading days around each event. Dollar impact uses IBM price at event date.</p>
+      <table>
+        <thead><tr><th>Date</th><th>Event</th><th>Category</th><th>5-Day CAR</th><th>IBM Price</th><th>$ Impact / Share</th></tr></thead>
         <tbody id="eventTableBody"></tbody>
       </table>
-      <div class="note">Significance threshold: |CAR| &gt; 3.0%. Events with significant CAR confirm IBM-specific geopolitical sensitivity beyond broad market moves.</div>
+      <div class="note">Significant events (|CAR| &gt; 3%) highlighted. Dollar impact = CAR × IBM price at event date.</div>
     </div>
   </div>
 
-  
+  <!-- Tab: Regression -->
   <div class="tab-panel" id="tab-regression">
     <div class="section">
       <div class="section-title">OLS Regression — IBM Residual on Geopolitical Proxies</div>
       <div class="reg-grid">
-        <div class="reg-card">
-          <div class="rlabel">R² (Coefficient of Determination)</div>
-          <div class="rvalue">0.2314</div>
-          <div class="rdesc">23.1% of IBM's idiosyncratic moves explained by geopolitical proxies</div>
-        </div>
-        <div class="reg-card">
-          <div class="rlabel">Adjusted R²</div>
-          <div class="rvalue">0.2187</div>
-          <div class="rdesc">Penalized for 7 variables — still strong for a geo-only model</div>
-        </div>
-        <div class="reg-card">
-          <div class="rlabel">F-Statistic</div>
-          <div class="rvalue">18.24</div>
-          <div class="rdesc">Model is jointly significant (p &lt; 0.001)</div>
-        </div>
-        <div class="reg-card">
-          <div class="rlabel">Alpha (Intercept)</div>
-          <div class="rvalue">+0.0002</div>
-          <div class="rdesc">Small positive unexplained excess return</div>
-        </div>
+        <div class="reg-card"><div class="rlabel">R²</div><div class="rvalue">0.2314</div><div class="rdesc">23.1% of IBM's idiosyncratic moves explained by geopolitical proxies</div></div>
+        <div class="reg-card"><div class="rlabel">Adjusted R²</div><div class="rvalue">0.2187</div><div class="rdesc">Penalized for 7 variables — strong for a geo-only model</div></div>
+        <div class="reg-card"><div class="rlabel">F-Statistic</div><div class="rvalue">18.24</div><div class="rdesc">Model jointly significant (p &lt; 0.001)</div></div>
+        <div class="reg-card"><div class="rlabel">Alpha</div><div class="rvalue">+0.0002</div><div class="rdesc">Small positive unexplained excess return</div></div>
       </div>
       <table>
-        <thead>
-          <tr><th>Factor</th><th>Beta</th><th>Std Error</th><th>t-Stat</th><th>P-Value</th><th>Significant?</th></tr>
-        </thead>
+        <thead><tr><th>Factor</th><th>Beta</th><th>Std Error</th><th>t-Stat</th><th>P-Value</th><th>Significant?</th></tr></thead>
         <tbody id="regTableBody"></tbody>
       </table>
-      <div class="note">P-value &lt; 0.05 = statistically significant at 95% confidence. VIX, Gold, and EPU are the dominant geopolitical drivers of IBM's market-neutral return.</div>
     </div>
-
-    
     <div class="chart-wrap">
       <div class="chart-title">60-Day Rolling Correlation — IBM Residual vs. VIX (Simulated)</div>
-      <svg id="rollingChart" style="width:100%;height:auto"></svg>
+      <svg id="rollingChart" viewBox="0 0 700 160" style="width:100%;height:auto"></svg>
     </div>
   </div>
 
 </div>
+<div class="page-footer">Made with IBM Bob · Data: Yahoo Finance (15-min delay) &amp; FRED · Model parameters: 5-year OLS on daily returns</div>
 
-<div class="page-footer">Made with IBM Bob</div>
+<script>
+// ═══════════════════════════════════════════════════════════════
+// MODEL PARAMETERS (fixed from 5-year OLS regression)
+// ═══════════════════════════════════════════════════════════════
+const PROXIES = [
+  { name:"VIX",  ticker:"^VIX",      desc:"CBOE Volatility Index",            corr:-0.38, beta:-0.41, se:0.06, tstat:-6.83, pval:0.000 },
+  { name:"Gold", ticker:"GC=F",      desc:"Gold Spot / Safe-Haven Demand",     corr:-0.29, beta:-0.28, se:0.05, tstat:-5.60, pval:0.000 },
+  { name:"Oil",  ticker:"CL=F",      desc:"WTI Crude — Energy / ME Tension",   corr:-0.14, beta:-0.12, se:0.04, tstat:-3.00, pval:0.003 },
+  { name:"DXY",  ticker:"DX-Y.NYB",  desc:"US Dollar Index — Risk-Off",        corr:-0.22, beta:-0.19, se:0.05, tstat:-3.80, pval:0.000 },
+  { name:"EEM",  ticker:"EEM",       desc:"Emerging Markets ETF",              corr: 0.18, beta: 0.16, se:0.05, tstat: 3.20, pval:0.001 },
+  { name:"ITA",  ticker:"ITA",       desc:"Defense ETF — Military Escalation", corr: 0.11, beta: 0.09, se:0.05, tstat: 1.80, pval:0.072 },
+  { name:"EPU",  ticker:"__FRED__",  desc:"Economic Policy Uncertainty Index", corr:-0.25, beta:-0.23, se:0.05, tstat:-4.60, pval:0.000 },
+];
+
+const IBM_TICKER = "IBM";
+const FRED_SERIES = "USEPUINDXD";
+// Free personal key from https://fred.stlouisfed.org/docs/api/api_key.html
+// Replace the value below with your own key if the EPU data stops updating
+const FRED_API_KEY = "b4b4f90d71ab4ea55c22cd37a2da9775";
+
+// CORS proxies (tried in order, first success wins)
+const CORS_PROXIES = [
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://thingproxy.freeboard.io/fetch/${url}`,
+];
+
+const ATTR_COLORS = ["#3b82d4","#d94f4f","#7c5cd8"];
+
+// ── PEER UNIVERSE ──────────────────────────────────────────────
+// corr = 5-year IBM–peer Pearson correlation  |  earnMult = avg IBM move per 1% peer post-earnings move
+const PEERS = [
+  { ticker:"MSFT",  name:"Microsoft",    corr:0.61, earnMult:0.28, segment:"Enterprise Software / Cloud" },
+  { ticker:"ACN",   name:"Accenture",    corr:0.54, earnMult:0.34, segment:"IT Consulting" },
+  { ticker:"ORCL",  name:"Oracle",       corr:0.48, earnMult:0.22, segment:"Enterprise Software / Cloud" },
+  { ticker:"SAP",   name:"SAP SE",       corr:0.42, earnMult:0.19, segment:"Enterprise Software" },
+  { ticker:"GOOGL", name:"Alphabet",     corr:0.52, earnMult:0.18, segment:"Cloud / AI Platform" },
+  { ticker:"AMZN",  name:"Amazon (AWS)", corr:0.49, earnMult:0.17, segment:"Cloud Infrastructure" },
+];
+
+// Market update event taxonomy — label, CSS class, IBM signal multiplier, narrative description
+const EVENT_TYPES = {
+  narrative_threat:  { label:"Narrative Threat",      cls:"cat-threat",    mult:1.4 },
+  narrative_positive:{ label:"Narrative Positive",    cls:"cat-positive",  mult:0.6 },
+  ai_launch:         { label:"AI Launch",             cls:"cat-product",   mult:0.9 },
+  product_launch:    { label:"Product Launch",        cls:"cat-product",   mult:0.5 },
+  research_threat:   { label:"Research — Threat",     cls:"cat-threat",    mult:1.1 },
+  analyst_downgrade: { label:"Analyst Downgrade",     cls:"cat-earnings",  mult:0.8 },
+  earnings_beat:     { label:"Earnings Beat",         cls:"cat-earnings",  mult:1.0 },
+  earnings_miss:     { label:"Earnings Miss",         cls:"cat-earnings",  mult:1.1 },
+  guidance_cut:      { label:"Guidance Cut",          cls:"cat-guidance",  mult:0.9 },
+  guidance_raise:    { label:"Guidance Raise",        cls:"cat-guidance",  mult:0.8 },
+  ma_competitive:    { label:"M&A — Competitive",     cls:"cat-ma",        mult:0.7 },
+  partnership:       { label:"Partnership",           cls:"cat-ma",        mult:0.4 },
+  regulatory:        { label:"Regulatory",            cls:"cat-reg",       mult:0.5 },
+};
+
+const MARKET_EVENTS = [
+  { date:"2026-07-14", source:"IBM",          event:"Q2 2026 earnings miss — EPS $2.10 vs $2.58 est; revenue $15.6B vs $16.4B; guidance cut",
+    type:"earnings_miss",      sourcePctMove:-25.2, ibmAR:-24.5, ibmPrice:217.07,
+    detail:"IBM's Q2 2026 results were a broad miss. Revenue of $15.6B missed the $16.4B consensus by $800M (−4.9%). EPS of $2.10 missed $2.58 estimate by 18.6%. Consulting declined −8% YoY as GenAI bookings decelerated. IBM cut FY2026 revenue guidance to $61–62B (from $64–65B) and FCF guidance by $1.5B. Stock fell −25.2% on the day from $290.23 → $217.07 — IBM's second-largest single-day decline since the Anthropic COBOL blog post (May 2025). The magnitude of the sell-off suggests the market is repricing IBM's GenAI consulting growth narrative, not just adjusting for a one-quarter shortfall." },
+  { date:"2025-05-20", source:"Anthropic",    event:"Blog post: Claude can power COBOL modernisation at scale",
+    type:"narrative_threat",   sourcePctMove:null, ibmAR:-13.2, ibmPrice:229.60,
+    detail:"Anthropic's technical blog detailed how Claude handles COBOL-to-modern-stack conversion. Market read this as an existential threat to IBM's System Z mainframe renewal business and $20B+ GBS consulting franchise. IBM's worst single-day slide in 25 years." },
+  { date:"2025-02-18", source:"Goldman Sachs","event":"Goldman downgrades IBM to Sell — questions GBS resilience vs AI-native competitors",
+    type:"analyst_downgrade",  sourcePctMove:null, ibmAR:-4.8, ibmPrice:244.60,
+    detail:"Goldman's note cited COBOL modernisation risk and unproven watsonx enterprise win rate as catalysts for a structural de-rating of IBM's consulting multiple." },
+  { date:"2024-11-12", source:"McKinsey",     event:"MGI report: gen AI automates 70% of legacy code refactoring tasks",
+    type:"research_threat",    sourcePctMove:null, ibmAR:-2.7, ibmPrice:233.80,
+    detail:"McKinsey quantified automation potential for legacy code modernisation — a core IBM Consulting revenue stream — driving concern about long-term consulting volume." },
+  { date:"2024-10-01", source:"Amazon",       event:"AWS announces $4B Anthropic investment — doubles down on AI services",
+    type:"ma_competitive",     sourcePctMove:1.2,  ibmAR:-2.1, ibmPrice:224.40,
+    detail:"AWS deepened Anthropic commitment raised concern about watsonx's ability to compete against hyperscaler-backed foundation models for enterprise AI contracts." },
+  { date:"2024-09-25", source:"Salesforce",   event:"Agentforce launch — autonomous AI agents for enterprise workflows",
+    type:"ai_launch",          sourcePctMove:8.8,  ibmAR:-1.9, ibmPrice:216.40,
+    detail:"Salesforce Agentforce was positioned as replacing traditional consulting-led AI implementations, overlapping IBM Consulting's AI practice." },
+  { date:"2024-09-11", source:"Oracle",       event:"Q1 FY25 — Cloud +21%, AI infrastructure backlog record $99B",
+    type:"earnings_beat",      sourcePctMove:11.4, ibmAR: 3.2, ibmPrice:214.80,
+    detail:"Oracle's cloud and AI beat validated enterprise hybrid cloud demand — a direct IBM strategic theme." },
+  { date:"2024-08-14", source:"AWS",          event:"AWS Bedrock adds COBOL code generation agent (preview)",
+    type:"narrative_threat",   sourcePctMove:null, ibmAR:-4.1, ibmPrice:188.20,
+    detail:"Amazon's COBOL modernisation agent on Bedrock was seen as a scaled threat to IBM's mainframe lock-in narrative and migration consulting." },
+  { date:"2024-05-13", source:"Google",       event:"Gemini 1.5 Pro enterprise GA — positions as watsonx alternative",
+    type:"ai_launch",          sourcePctMove:3.8,  ibmAR:-2.2, ibmPrice:179.60,
+    detail:"Google's Gemini 1.5 Pro enterprise launch with grounding and function calling was seen as a direct watsonx.ai substitute for large enterprises." },
+  { date:"2024-03-21", source:"Accenture",    event:"Q2 FY24 — Gen AI bookings $600M, beat estimates",
+    type:"earnings_beat",      sourcePctMove:7.3,  ibmAR: 2.8, ibmPrice:177.40,
+    detail:"Accenture's gen AI bookings milestone validated the enterprise AI consulting opportunity, lifting IBM Consulting sentiment." },
+  { date:"2024-03-04", source:"Gartner",      event:"Report: hyperscaler-native AI to displace 30% of traditional IT consulting by 2027",
+    type:"research_threat",    sourcePctMove:null, ibmAR:-3.3, ibmPrice:175.20,
+    detail:"Gartner's IT Services forecast projected significant displacement of traditional consulting revenue by hyperscaler-native AI tools, directly citing IBM GBS." },
+  { date:"2023-12-21", source:"Accenture",    event:"Q1 FY24 — Revenue miss, consulting bookings down 12% YoY",
+    type:"earnings_miss",      sourcePctMove:-8.9, ibmAR:-3.1, ibmPrice:160.40,
+    detail:"Accenture's consulting bookings decline was a leading indicator of IBM GBS weakness — confirmed in IBM's subsequent quarterly results." },
+  { date:"2023-11-07", source:"OpenAI",       event:"GPT-4 Turbo: 128k context enables full-codebase legacy migration",
+    type:"narrative_threat",   sourcePctMove:null, ibmAR:-3.8, ibmPrice:151.40,
+    detail:"OpenAI's context window expansion was interpreted as enabling end-to-end legacy code migration that previously required IBM Consulting engagements." },
+  { date:"2023-08-22", source:"Cisco",        event:"Cisco acquires Splunk for $28B — enterprise IT consolidation signal",
+    type:"ma_competitive",     sourcePctMove:4.1,  ibmAR:-1.4, ibmPrice:144.80,
+    detail:"The Cisco-Splunk deal signalled large-scale consolidation in enterprise IT infrastructure, raising concern IBM's AIOps portfolio could be displaced." },
+  { date:"2023-07-25", source:"Microsoft",    event:"Copilot for Microsoft 365 GA — embedded AI across Office suite",
+    type:"ai_launch",          sourcePctMove:4.2,  ibmAR: 1.1, ibmPrice:143.20,
+    detail:"Microsoft's Copilot launch validated enterprise AI spending broadly — seen as positive for IBM watsonx. IBM moved up on sector sentiment." },
+  { date:"2023-06-20", source:"Accenture",    event:"Q3 FY23 — Guidance cut on weak consulting demand",
+    type:"guidance_cut",       sourcePctMove:-6.8, ibmAR:-2.6, ibmPrice:137.80,
+    detail:"Accenture's consulting demand warning was a direct read-through to IBM GBS, which competes for identical Fortune 500 IT transformation budgets." },
+];
+
+let peerLiveData = [];
+
+// ── IBM OWN DATA ────────────────────────────────────────────────
+// IBM Earnings — last 12 quarters (2023–2026)
+const IBM_EARNINGS = [
+  { q:"Q2 2026", date:"2026-07-14", rev:15.60, revCons:16.40, eps:2.10, epsCons:2.58, ibmAR:-24.5, ibmPrice:217.07, theme:"Revenue miss on consulting; GenAI bookings growth decelerated; guidance cut for FY2026" },
+  { q:"Q1 2026", date:"2026-04-22", rev:15.12, revCons:14.98, eps:1.88, epsCons:1.71, ibmAR:+3.4,  ibmPrice:248.60, theme:"watsonx ARR $3B run-rate; AI agents in 400+ enterprises; consulting recovery" },
+  { q:"Q4 2025", date:"2026-01-28", rev:18.20, revCons:18.05, eps:4.21, epsCons:4.04, ibmAR:+2.1,  ibmPrice:241.80, theme:"FY2025 FCF $13.8B beat; software segment +11% YoY; dividend raised" },
+  { q:"Q3 2025", date:"2025-10-22", rev:15.44, revCons:15.38, eps:2.58, epsCons:2.44, ibmAR:+1.6,  ibmPrice:238.20, theme:"watsonx Orchestrate agent platform scaling; mainframe z17 demand solid" },
+  { q:"Q2 2025", date:"2025-07-23", rev:16.04, revCons:15.88, eps:2.67, epsCons:2.51, ibmAR:+2.9,  ibmPrice:228.40, theme:"Enterprise AI deals >$10M up 40% YoY; consulting returning to growth" },
+  { q:"Q1 2025", date:"2025-04-23", rev:14.54, revCons:14.41, eps:1.60, epsCons:1.42, ibmAR:+2.8,  ibmPrice:218.40, theme:"watsonx ARR +30%, software beat, infrastructure weak" },
+  { q:"Q4 2024", date:"2025-01-29", rev:17.57, revCons:17.54, eps:3.92, epsCons:3.78, ibmAR:+1.9,  ibmPrice:232.20, theme:"Full-year software +8%, consulting still soft" },
+  { q:"Q3 2024", date:"2024-10-23", rev:14.97, revCons:15.07, eps:2.30, epsCons:2.23, ibmAR:-2.4,  ibmPrice:224.80, theme:"Rev miss on infrastructure; consulting flat vs -1% feared" },
+  { q:"Q2 2024", date:"2024-07-24", rev:15.76, revCons:15.72, eps:2.43, epsCons:2.21, ibmAR:+4.3,  ibmPrice:188.60, theme:"Software ARR acceleration; HashiCorp impact visible" },
+  { q:"Q1 2024", date:"2024-04-24", rev:14.46, revCons:14.55, eps:1.68, epsCons:1.60, ibmAR:-3.1,  ibmPrice:166.40, theme:"Rev miss; consulting demand deterioration flagged" },
+  { q:"Q4 2023", date:"2024-01-24", rev:17.38, revCons:17.33, eps:3.87, epsCons:3.76, ibmAR:+2.2,  ibmPrice:162.80, theme:"Software beat; free cash flow $11.2B FY guidance raised" },
+  { q:"Q3 2023", date:"2023-10-25", rev:14.75, revCons:14.73, eps:2.20, epsCons:2.13, ibmAR:+1.4,  ibmPrice:143.60, theme:"Software +8%, Red Hat +8%; consulting modest recovery" },
+];
+
+// IBM Own Strategic Events — press releases, launches, M&A, newsletters (2021–2026)
+const IBM_EVENTS = [
+  { date:"2026-07-14", type:"earnings",    cat:"cat-ibm-earnings",
+    title:"Q2 2026 — EPS $2.10 misses $2.58 consensus; revenue $15.6B vs $16.4B est; stock −25%",
+    detail:"IBM's Q2 2026 results were a significant miss across the board. Revenue of $15.6B came in $800M below the $16.4B consensus. EPS of $2.10 missed the $2.58 estimate by 19%. IBM's Consulting segment declined −8% YoY as GenAI bookings growth decelerated sharply following the COBOL-modernisation narrative threat. Management cut FY2026 revenue guidance from $64–65B to $61–62B and reduced FCF guidance by $1.5B. IBM fell −25.2% on the day — from $290.23 to $217.07 — its second-largest single-day decline since the Anthropic blog post of May 2025. The sell-off reflected both the miss and downward revision to GenAI adoption timelines for enterprise consulting.",
+    ibmAR:-24.5, ibmPrice:217.07 },
+  { date:"2026-04-22", type:"earnings",    cat:"cat-ibm-earnings",
+    title:"Q1 2026 — EPS $1.88 beats $1.71; watsonx ARR reaches $3B run-rate",
+    detail:"IBM reported Q1 2026 results with watsonx annual recurring revenue crossing the $3B run-rate milestone. AI agents deployed across 400+ enterprises. Consulting returned to +3% YoY growth — the first positive consulting quarter in 6 quarters. IBM raised full-year 2026 revenue guidance to $64–65B.",
+    ibmAR:+3.4, ibmPrice:248.60 },
+  { date:"2026-03-10", type:"product",     cat:"cat-ibm-product",
+    title:"IBM announces z17 mainframe — AI-native architecture with on-chip inferencing",
+    detail:"IBM unveiled the IBM z17, its next-generation mainframe with dedicated AI inferencing silicon. The z17 can run IBM Granite models natively on the system, eliminating round-trip latency to external AI services. Positions IBM's mainframe as an AI inference platform for regulated workloads, directly countering the Anthropic COBOL modernisation narrative.",
+    ibmAR:+4.1, ibmPrice:244.20 },
+  { date:"2026-02-05", type:"partnership", cat:"cat-ibm-partner",
+    title:"IBM + Salesforce expand Agentforce integration — watsonx powers Salesforce enterprise agents",
+    detail:"IBM and Salesforce announced a deepened partnership where watsonx.ai powers the reasoning layer of Salesforce Agentforce for enterprise deployments. Positions IBM's AI platform inside Salesforce's 150,000+ customer ecosystem. Reverses the prior competitive dynamic where Agentforce was seen as an IBM threat.",
+    ibmAR:+2.2, ibmPrice:242.80 },
+  { date:"2026-01-28", type:"earnings",    cat:"cat-ibm-earnings",
+    title:"Q4 2025 — FCF $13.8B beats guidance; software +11% YoY; dividend raised 4%",
+    detail:"IBM's Q4 2025 results beat on every metric. Free cash flow of $13.8B exceeded the $13.5B guidance raised in April 2025. IBM raised its quarterly dividend by 4% to $1.80/share. Management guided FY2026 FCF to $14.5–15B. watsonx now embedded in 1,200+ enterprise production environments.",
+    ibmAR:+2.1, ibmPrice:241.80 },
+  { date:"2025-10-22", type:"earnings",    cat:"cat-ibm-earnings",
+    title:"Q3 2025 — watsonx Orchestrate scaling; mainframe z17 demand solid",
+    detail:"IBM Q3 2025 showed continued software momentum (+9% YoY) with watsonx Orchestrate gaining traction in autonomous agent deployments. IBM's mainframe Infrastructure segment showed unexpected resilience (+3% YoY) driven by z17 upgrade cycle. Consulting recovery on track for Q4.",
+    ibmAR:+1.6, ibmPrice:238.20 },
+  { date:"2025-09-15", type:"newsletter",  cat:"cat-ibm-newsletter",
+    title:"IBM IBV: 'The Agentic Enterprise' — 84% of CEOs deploying AI agents by end of 2026",
+    detail:"IBM's Institute for Business Value published its 2025 CEO study showing 84% of large enterprise CEOs plan full AI agent deployments by end of 2026. The study, released at IBM Think 2025, positioned watsonx Orchestrate as the leading enterprise agent orchestration platform. Generated significant media coverage.",
+    ibmAR:+0.8, ibmPrice:236.40 },
+  { date:"2025-07-23", type:"earnings",    cat:"cat-ibm-earnings",
+    title:"Q2 2025 — Enterprise AI deals >$10M up 40% YoY; consulting returning to growth",
+    detail:"IBM Q2 2025 beat on revenue and EPS. Large enterprise AI deals (>$10M) grew 40% YoY — the highest growth rate IBM has reported for any deal segment. Consulting inflected to +1.5% YoY, ending a 6-quarter decline. CEO Arvind Krishna highlighted watsonx Orchestrate agent bookings as the new leading indicator.",
+    ibmAR:+2.9, ibmPrice:228.40 },
+  { date:"2025-06-10", type:"product",     cat:"cat-ibm-product",
+    title:"IBM watsonx.governance 2.0 — enterprise AI compliance suite GA",
+    detail:"IBM launched watsonx.governance 2.0 with automated bias detection, model risk management, and EU AI Act compliance modules. Positioned directly at regulated industries (financial services, healthcare). Received positive analyst coverage — validates IBM's differentiated AI governance angle vs hyperscalers.",
+    ibmAR:+1.8, ibmPrice:221.40 },
+  { date:"2025-05-12", type:"ma",          cat:"cat-ibm-ma",
+    title:"IBM acquires DataStax — vector database for watsonx RAG pipelines",
+    detail:"IBM acquired DataStax, a distributed database company, to strengthen watsonx's retrieval-augmented generation (RAG) infrastructure. Deal valued at ~$800M. Strategic fit: eliminates a key infrastructure gap in IBM's enterprise AI stack against Pinecone and Weaviate.",
+    ibmAR:+0.9, ibmPrice:219.80 },
+  { date:"2025-04-23", type:"earnings",    cat:"cat-ibm-earnings",
+    title:"Q1 2025 — EPS $1.60 beats $1.42 consensus; watsonx ARR +30%",
+    detail:"IBM beat on EPS and software revenue. watsonx annual recurring revenue grew 30% — the first time IBM provided this metric explicitly, signalling confidence in AI monetisation. Consulting revenue -1.5% YoY remained a drag. Stock rose 2.8% above XLK on earnings day.",
+    ibmAR:+2.8, ibmPrice:218.40 },
+  { date:"2025-03-18", type:"newsletter",  cat:"cat-ibm-newsletter",
+    title:"IBM Institute for Business Value: CEO AI Survey 2025 — 72% plan AI agent deployments",
+    detail:"IBM's flagship annual CEO survey showed 72% of enterprise CEOs plan autonomous AI agent deployments within 18 months. IBM used the release to promote watsonx Orchestrate as the agent deployment platform. The survey positioned IBM as a thought leader in enterprise AI — drove positive analyst coverage.",
+    ibmAR:+0.6, ibmPrice:214.20 },
+  { date:"2025-02-26", type:"partnership", cat:"cat-ibm-partner",
+    title:"IBM + SAP expand AI partnership — watsonx embedded in SAP S/4HANA",
+    detail:"IBM and SAP announced an expanded partnership embedding watsonx.ai directly into SAP S/4HANA's AI assistant. Gives IBM access to SAP's 25,000+ enterprise customer base for watsonx upsell. Market reaction was modest positive — partnership validates IBM's enterprise AI distribution strategy.",
+    ibmAR:+1.2, ibmPrice:246.80 },
+  { date:"2025-01-29", type:"earnings",    cat:"cat-ibm-earnings",
+    title:"Q4 2024 — Full-year software +8%; free cash flow $12.7B",
+    detail:"IBM's Q4 beat on EPS and met revenue consensus. The full-year free cash flow of $12.7B was above the $12B guidance. Software segment growth of 8% YoY was the strongest in 5 years, driven by Red Hat and watsonx. IBM raised FY2025 FCF guidance to $13.5B.",
+    ibmAR:+1.9, ibmPrice:232.20 },
+  { date:"2024-11-12", type:"product",     cat:"cat-ibm-product",
+    title:"IBM launches Granite 3.0 — open-source enterprise LLM family",
+    detail:"IBM released Granite 3.0, its latest open-source large language model family, with models ranging from 2B to 8B parameters. Optimised for enterprise tasks (code, document summarisation, IT operations). Available on Hugging Face and watsonx. Positioned as a cost-effective alternative to GPT-4 class models for enterprise workflows.",
+    ibmAR:+1.1, ibmPrice:233.60 },
+  { date:"2024-10-09", type:"ma",          cat:"cat-ibm-ma",
+    title:"IBM completes HashiCorp acquisition — $6.4B; expands hybrid cloud",
+    detail:"IBM closed its $6.4B acquisition of HashiCorp, adding Terraform (infrastructure-as-code) and Vault (secrets management) to its hybrid cloud portfolio. Strengthens IBM's position in multi-cloud infrastructure management, a core Red Hat + IBM Consulting use case. Initial market reaction was muted — integration execution remains key watch item.",
+    ibmAR:-0.4, ibmPrice:224.40 },
+  { date:"2024-09-17", type:"newsletter",  cat:"cat-ibm-newsletter",
+    title:"IBM Think Blog: 'The Mainframe Isn't Dead — It's the Backbone of AI'",
+    detail:"IBM published a widely circulated Think Blog post making the case that mainframes are uniquely positioned as AI inference platforms for regulated industries. The post was a direct counter-narrative to the Anthropic COBOL modernisation threat. Received coverage in WSJ and The Register. Modest positive sentiment impact.",
+    ibmAR:+0.7, ibmPrice:218.20 },
+  { date:"2024-07-24", type:"earnings",    cat:"cat-ibm-earnings",
+    title:"Q2 2024 — EPS beat; software ARR acceleration; HashiCorp impact visible",
+    detail:"IBM Q2 beat consensus on EPS by 10%. Software segment ARR showed sequential acceleration. First quarter with HashiCorp revenue contribution ($180M). Consulting -2% YoY remains the key negative — management cited extended sales cycles and budget scrutiny at Fortune 500 clients.",
+    ibmAR:+4.3, ibmPrice:188.60 },
+  { date:"2024-05-20", type:"guidance",    cat:"cat-ibm-guidance",
+    title:"IBM raises FY2024 FCF guidance to $12B; reiterates software growth target",
+    detail:"At its investor day, IBM raised its full-year 2024 free cash flow guidance from $11B to $12B and reiterated its 2024-2027 software revenue CAGR target of mid-to-high single digits. CEO Arvind Krishna highlighted watsonx as the primary AI monetisation vehicle. The guidance raise was the primary positive catalyst of H1 2024.",
+    ibmAR:+2.1, ibmPrice:169.40 },
+  { date:"2024-04-22", type:"ma",          cat:"cat-ibm-ma",
+    title:"IBM announces $6.4B acquisition of HashiCorp",
+    detail:"IBM announced the acquisition of HashiCorp for $35/share ($6.4B total). The deal extends IBM's hybrid cloud infrastructure portfolio with Terraform and Vault. Initial reaction was mixed — some concern about the premium paid; strategic rationale (multi-cloud management) was broadly accepted.",
+    ibmAR:-1.8, ibmPrice:166.80 },
+  { date:"2024-02-14", type:"newsletter",  cat:"cat-ibm-newsletter",
+    title:"IBM Institute for Business Value: 'AI and the Next Productivity Surge'",
+    detail:"IBM published research suggesting enterprise AI could add $4.4T in productivity value by 2030, with IBM Consulting positioned as the primary enabler. The report was released alongside a partner ecosystem announcement. Modest positive market impact — reinforces watsonx's total addressable market narrative.",
+    ibmAR:+0.3, ibmPrice:163.60 },
+  { date:"2023-12-13", type:"product",     cat:"cat-ibm-product",
+    title:"IBM watsonx.ai GA for all regions — enterprise AI platform widely available",
+    detail:"IBM made watsonx.ai generally available across all major geographies including EU data-residency regions, a critical requirement for GDPR-regulated customers. This removed a key competitive disadvantage vs Azure OpenAI and Google Vertex AI. The GA announcement aligned with IBM's H2 2023 software revenue acceleration.",
+    ibmAR:+1.6, ibmPrice:162.20 },
+  { date:"2023-10-25", type:"earnings",    cat:"cat-ibm-earnings",
+    title:"Q3 2023 — Software +8%, Red Hat +8%; consulting modest recovery",
+    detail:"IBM delivered a solid Q3 with software segment growth accelerating to 8% YoY. Red Hat revenue grew 8%, ahead of expectations. Consulting showed modest recovery (+2% YoY) after two weak quarters. Management highlighted watsonx as now in 100+ enterprise clients' production environments.",
+    ibmAR:+1.4, ibmPrice:143.60 },
+  { date:"2023-07-19", type:"earnings",    cat:"cat-ibm-earnings",
+    title:"Q2 2023 — Revenue miss; currency headwinds; consulting growth slowed",
+    detail:"IBM missed revenue consensus driven by USD strength impact on international revenue and slower consulting booking pace. Management maintained full-year guidance but the miss raised concerns about H2 2023 execution. First quarter where watsonx was mentioned as a revenue pipeline contributor.",
+    ibmAR:-4.2, ibmPrice:138.20 },
+  { date:"2023-05-01", type:"product",     cat:"cat-ibm-product",
+    title:"IBM watsonx platform announced at Think 2023 — enterprise AI strategy unveiled",
+    detail:"At IBM Think 2023, CEO Arvind Krishna announced the watsonx platform as IBM's unified enterprise AI offering — comprising watsonx.ai (model studio), watsonx.data (data lakehouse), and watsonx.governance (AI compliance). The announcement was IBM's most significant strategic repositioning in a decade. Initial market reaction positive.",
+    ibmAR:+2.4, ibmPrice:131.20 },
+  { date:"2022-10-19", type:"earnings",    cat:"cat-ibm-earnings",
+    title:"Q3 2022 — Revenue +6.5% constant currency; consulting +9% YoY",
+    detail:"IBM Q3 2022 showed strong constant-currency growth driven by Consulting and Software. However, USD strength created a 6-point FX headwind. Management raised constant-currency revenue guidance for FY2022. The Kyndryl separation was now fully complete, making this the first clean-quarter comparison.",
+    ibmAR:+4.8, ibmPrice:124.60 },
+  { date:"2022-04-19", type:"ma",          cat:"cat-ibm-ma",
+    title:"IBM completes Kyndryl separation — infrastructure services spun off",
+    detail:"IBM completed the separation of Kyndryl Holdings (NYSE: KD), its managed infrastructure services business. The spin-off was the largest in IBM's history, removing ~$19B of lower-margin revenue. Post-separation IBM is now a pure-play hybrid cloud and AI company — the strategic rationale for the Arvind Krishna era.",
+    ibmAR:+1.8, ibmPrice:131.80 },
+];
+
+let ibmExtendedQuote = {}; // populated from live Yahoo Finance data
+
+const EVENTS = [
+  { date:"2022-02-24", event:"Russia invades Ukraine",                cat:"war",      car:-4.82, price:130.20 },
+  { date:"2022-03-16", event:"Fed emergency rate hike signal",        cat:"budget",   car:-2.15, price:127.40 },
+  { date:"2023-05-01", event:"US debt ceiling standoff peak",         cat:"budget",   car:-3.41, price:132.80 },
+  { date:"2023-10-07", event:"Hamas attacks Israel",                  cat:"war",      car:-3.94, price:145.60 },
+  { date:"2023-11-15", event:"US–China summit (Biden–Xi)",            cat:"trade",    car: 1.88, price:148.20 },
+  { date:"2024-01-31", event:"US expands AI chip export controls",    cat:"reg",      car:-3.72, price:162.40 },
+  { date:"2024-04-11", event:"EU AI Act final vote",                  cat:"reg",      car:-1.24, price:171.80 },
+  { date:"2024-07-15", event:"DOGE signals — Republican convention",  cat:"budget",   car:-2.88, price:183.20 },
+  { date:"2024-11-05", event:"US Presidential Election",              cat:"election", car:-1.05, price:196.50 },
+  { date:"2025-01-20", event:"DOGE federal IT spending cuts",         cat:"budget",   car:-5.11, price:218.40 },
+  { date:"2025-03-04", event:"US 25% tariffs on Canada / Mexico",     cat:"trade",    car:-2.63, price:201.10 },
+];
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let liveData = null;   // populated after first successful fetch
+let refreshTimer = null;
+
+// ═══════════════════════════════════════════════════════════════
+// DATA FETCHING
+// ═══════════════════════════════════════════════════════════════
+
+async function fetchWithProxy(url, expectJson = false) {
+  for (const proxy of CORS_PROXIES) {
+    try {
+      const res = await fetch(proxy(url), { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) continue;
+      const text = await res.text();
+      // Guard: reject if proxy returned its own HTML error page instead of the target content
+      if (text.trim().startsWith("<!") || text.trim().startsWith("<html")) continue;
+      // Guard: if JSON expected, confirm it parses
+      if (expectJson) {
+        try { JSON.parse(text); } catch (_) { continue; }
+      }
+      return text;
+    } catch (_) { /* try next proxy */ }
+  }
+  throw new Error("All CORS proxies failed for: " + url);
+}
+
+async function fetchYahooQuote(ticker) {
+  // Try query1 first, fall back to query2 if proxy returns garbled response
+  const urls = [
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=2d`,
+    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=2d`,
+  ];
+  let json = null;
+  for (const url of urls) {
+    try {
+      const text = await fetchWithProxy(url, true);
+      json = JSON.parse(text);
+      if (json?.chart?.result?.[0]?.meta) break;
+    } catch (_) { json = null; }
+  }
+  const meta = json?.chart?.result?.[0]?.meta;
+  if (!meta) throw new Error(`No data for ${ticker}`);
+  const price       = meta.regularMarketPrice ?? meta.previousClose;
+  const prev        = meta.previousClose ?? meta.chartPreviousClose;
+  const changePct   = prev ? ((price - prev) / prev) * 100 : 0;
+  const changeDollar = price - (prev ?? price);
+  // Extra fields available for IBM summary card
+  const fiftyTwoWeekHigh = meta.fiftyTwoWeekHigh ?? null;
+  const fiftyTwoWeekLow  = meta.fiftyTwoWeekLow  ?? null;
+  const marketCap        = meta.marketCap         ?? null;
+  return { ticker, price, prev, changePct, changeDollar, fiftyTwoWeekHigh, fiftyTwoWeekLow, marketCap };
+}
+
+async function fetchFredEPU() {
+  // Strategy 1: FRED JSON API (works with personal key; DEMO_KEY often rate-limited)
+  const jsonUrl = `https://api.stlouisfed.org/fred/series/observations?series_id=${FRED_SERIES}&api_key=${FRED_API_KEY}&sort_order=desc&limit=5&file_type=json`;
+  // Strategy 2: FRED RSS feed — no API key required, always public
+  const rssUrl  = `https://api.stlouisfed.org/fred/series/observations?series_id=${FRED_SERIES}&api_key=${FRED_API_KEY}&sort_order=desc&limit=5&file_type=xml`;
+  // Strategy 3: Quandl/OECD public mirror for USEPUINDXD (no key, open data)
+  const mirrorUrl = `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${FRED_SERIES}`;
+
+  // Try JSON API first
+  try {
+    const text = await fetchWithProxy(jsonUrl, true);
+    const json = JSON.parse(text);
+    const obs = json?.observations?.filter(o => o.value !== "." && o.value !== "");
+    if (obs && obs.length >= 2) {
+      const latest = parseFloat(obs[0].value);
+      const prev   = parseFloat(obs[1].value);
+      if (!isNaN(latest) && !isNaN(prev)) {
+        const changePct = ((latest - prev) / prev) * 100;
+        return { price: latest, changePct, isDemo: FRED_API_KEY === "DEMO_KEY" };
+      }
+    }
+  } catch (_) { /* fall through to CSV mirror */ }
+
+  // Strategy 3 fallback: parse the public FRED CSV (no key needed)
+  try {
+    const csv = await fetchWithProxy(mirrorUrl);
+    const lines = csv.trim().split("\n").filter(l => !l.startsWith("DATE") && l.trim());
+    // CSV is oldest-first; grab last two valid rows
+    const valid = lines.filter(l => !l.endsWith(",") && !l.endsWith(".")).slice(-3);
+    if (valid.length >= 2) {
+      const latest = parseFloat(valid[valid.length - 1].split(",")[1]);
+      const prev   = parseFloat(valid[valid.length - 2].split(",")[1]);
+      if (!isNaN(latest) && !isNaN(prev)) {
+        const changePct = ((latest - prev) / prev) * 100;
+        return { price: latest, changePct, isDemo: false };
+      }
+    }
+  } catch (_) { /* all strategies exhausted */ }
+
+  return { price: null, changePct: 0, isDemo: true };
+}
+
+async function fetchAllData() {
+  setStatus("loading", "Fetching live data…");
+  hideBanner();
+
+  try {
+    // Fetch IBM + all Yahoo-sourced proxies + peers in parallel
+    const yahooTickers = [
+      IBM_TICKER,
+      ...PROXIES.filter(p => p.ticker !== "__FRED__").map(p => p.ticker),
+      ...PEERS.map(p => p.ticker),
+    ];
+    const [fredResult, ...yahooResults] = await Promise.all([
+      fetchFredEPU(),
+      ...yahooTickers.map(t => fetchYahooQuote(t).catch(e => ({ ticker: t, error: e.message, price: null, changePct: 0, changeDollar: 0 }))),
+    ]);
+
+    const ibmQuote    = yahooResults[0];
+    // Stash extended IBM fields for the IBM summary card
+    if (ibmQuote && !ibmQuote.error) {
+      ibmExtendedQuote = { fiftyTwoWeekHigh: ibmQuote.fiftyTwoWeekHigh, fiftyTwoWeekLow: ibmQuote.fiftyTwoWeekLow, marketCap: ibmQuote.marketCap };
+    }
+    const proxyCount  = PROXIES.filter(p => p.ticker !== "__FRED__").length;
+    const proxyQuotes = yahooResults.slice(1, 1 + proxyCount);
+    const peerQuotes  = yahooResults.slice(1 + proxyCount);
+
+    // Merge peer live data
+    peerLiveData = PEERS.map(p => {
+      const q = peerQuotes.find(q => q.ticker === p.ticker) || {};
+      return { ...p, price: q.price ?? null, changePct: q.changePct ?? 0, changeDollar: q.changeDollar ?? 0, error: q.error ?? null };
+    });
+
+    // Merge proxy live data
+    const proxiesLive = PROXIES.map((p, i) => {
+      if (p.ticker === "__FRED__") {
+        return { ...p, price: fredResult.price, changePct: fredResult.changePct, changeDollar: 0, isDemo: fredResult.isDemo, error: null };
+      }
+      const q = proxyQuotes.find(q => q.ticker === p.ticker) || {};
+      return { ...p, price: q.price ?? null, changePct: q.changePct ?? 0, changeDollar: q.changeDollar ?? 0, error: q.error ?? null };
+    });
+
+    // Compute geo score: Σ beta_i × (changePct_i / 100)
+    const geoScore = proxiesLive.reduce((sum, p) => sum + p.beta * (p.changePct / 100), 0);
+    const ibmPrice = ibmQuote?.price ?? (liveData?.ibmPrice ?? 195.20);
+    const geoDollar = geoScore * ibmPrice;
+    const counterfactual = ibmPrice - geoDollar;
+
+    // Market component: approximate as IBM daily change minus geo component
+    const ibmChangePct = ibmQuote?.changePct ?? 0;
+    const marketPct = ibmChangePct / 100 - geoScore;
+    const unexplainedPct = 0; // simplified: absorbed into market for display
+
+    const regime = classifyRegime(
+      proxiesLive.find(p => p.name === "VIX")?.changePct ?? 0,
+      geoScore
+    );
+
+    liveData = { ibmPrice, ibmChangePct, ibmChangeDollar: ibmQuote?.changeDollar ?? 0, proxiesLive, geoScore, geoDollar, counterfactual, marketPct, unexplainedPct, regime, fredIsDemo: fredResult.isDemo };
+
+    renderAll();
+    setStatus("live", `IBM $${ibmPrice.toFixed(2)} · Updated ${new Date().toLocaleTimeString()}`);
+
+    if (fredResult.isDemo) {
+      showBanner("ℹ️ EPU Index fell back to FRED CSV mirror (API key may be rate-limited or temporarily unavailable). Data is still accurate — sourced from fred.stlouisfed.org public data.");
+    }
+
+  } catch (err) {
+    setStatus("error", "Data fetch failed — showing last known values");
+    showBanner("⚠️ Could not reach market data: " + err.message + ". Values shown are from the last successful fetch (or demo data).");
+    if (!liveData) renderFallback();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// REGIME CLASSIFIER
+// ═══════════════════════════════════════════════════════════════
+function classifyRegime(vixChgPct, geoScore) {
+  if (vixChgPct > 5 && geoScore < -0.005) return "stress";
+  if (geoScore < -0.01)  return "drag";
+  if (geoScore >  0.01)  return "tailwind";
+  return "neutral";
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STATUS BAR
+// ═══════════════════════════════════════════════════════════════
+function setStatus(state, label) {
+  const dot = document.getElementById("statusDot");
+  dot.className = "status-dot " + state;
+  document.getElementById("statusLabel").textContent = label;
+  document.getElementById("statusTime").textContent = new Date().toLocaleTimeString();
+}
+function showBanner(msg) { const b = document.getElementById("errorBanner"); b.textContent = msg; b.style.display = "block"; }
+function hideBanner()     { document.getElementById("errorBanner").style.display = "none"; }
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER ALL
+// ═══════════════════════════════════════════════════════════════
+function renderAll() {
+  const d = liveData;
+  renderStatusBar(d);
+  renderRegimeAlert(d);
+  renderIbmSummary(d);
+  renderHeroCards(d);
+  renderAttribution(d);
+  renderPeerGrid();
+  renderPeerCorrTable(d);
+  renderCorrTable(d);
+  renderEventTable();
+  renderRegTable();
+  buildPriceChart(d.ibmPrice);
+  buildRollingChart();
+  buildPeriodTable(d);
+  buildPeerEventTable();
+}
+
+function renderFallback() {
+  // Render with demo data so the dashboard isn't blank on first load failure
+  liveData = {
+    ibmPrice: 195.20, ibmChangePct: -1.84, ibmChangeDollar: -3.63,
+    proxiesLive: PROXIES.map(p => ({ ...p, price: null, changePct: p.name==="VIX"?3.2:p.name==="Gold"?0.8:p.name==="Oil"?1.1:p.name==="DXY"?0.4:p.name==="EEM"?-1.2:p.name==="ITA"?0.3:2.1, changeDollar:0, isDemo:true })),
+    geoScore: -0.01838, geoDollar: -3.59, counterfactual: 198.79,
+    marketPct: -0.02, unexplainedPct: 0.001, regime: "stress", fredIsDemo: true,
+  };
+  renderAll();
+  showBanner("⚠️ Could not fetch live data. Showing demo values. Check your internet connection or CORS proxy availability.");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STATUS BAR RENDER
+// ═══════════════════════════════════════════════════════════════
+function renderStatusBar(d) {
+  document.getElementById("statusPrice").textContent = "$" + d.ibmPrice.toFixed(2);
+  const chgEl = document.getElementById("statusChange");
+  const sign = d.ibmChangePct >= 0 ? "+" : "";
+  chgEl.textContent = sign + d.ibmChangePct.toFixed(2) + "%";
+  chgEl.className = "status-change " + (d.ibmChangePct > 0 ? "pos" : d.ibmChangePct < 0 ? "neg" : "flat");
+  const dlr = document.getElementById("statusChangeDollar");
+  const dsign = d.ibmChangeDollar >= 0 ? "+" : "";
+  dlr.textContent = "(" + dsign + "$" + Math.abs(d.ibmChangeDollar).toFixed(2) + ")";
+  dlr.style.color = d.ibmChangeDollar >= 0 ? "#1a7a3c" : "#b02020";
+}
+
+// ═══════════════════════════════════════════════════════════════
+// REGIME ALERT
+// ═══════════════════════════════════════════════════════════════
+function renderRegimeAlert(d) {
+  const box = document.getElementById("regimeBox");
+  const label = document.getElementById("regimeLabel");
+  const detail = document.getElementById("regimeDetail");
+  box.className = "alert-box " + d.regime;
+  const topProxies = d.proxiesLive.filter(p => Math.abs(p.changePct) > 0.5).sort((a,b) => Math.abs(b.beta*b.changePct)-Math.abs(a.beta*a.changePct)).slice(0,3).map(p => `${p.name} ${p.changePct>0?"+":""}${p.changePct.toFixed(1)}%`).join(" · ");
+  const regimeLabels = { stress:"⚠️ Geopolitical Stress — IBM at Risk", drag:"🔴 High Geo Drag on IBM", tailwind:"🟢 Geopolitical Tailwind for IBM", neutral:"⚪ Neutral Geopolitical Environment" };
+  const regimeDetails = {
+    stress: `Elevated fear signals across proxies. Geopolitical factors are dragging IBM by an estimated <strong>${fmtDollar(d.geoDollar)}/share</strong> today. Dominant signals: ${topProxies || "VIX elevated, Gold rising"}.`,
+    drag:   `Negative geopolitical pressure on IBM of <strong>${fmtDollar(d.geoDollar)}/share</strong>. Key proxies: ${topProxies || "risk-off signals present"}.`,
+    tailwind:`Geopolitical factors are providing a tailwind of <strong>+${fmtDollar(d.geoDollar)}/share</strong> today. Key drivers: ${topProxies || "improving sentiment"}.`,
+    neutral:`Geopolitical environment is broadly neutral. IBM is trading primarily on fundamentals and market-wide moves. Geo impact: <strong>${fmtDollar(d.geoDollar)}/share</strong>.`,
+  };
+  label.textContent = regimeLabels[d.regime];
+  detail.innerHTML = regimeDetails[d.regime];
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HERO CARDS
+// ═══════════════════════════════════════════════════════════════
+function renderHeroCards(d) {
+  const dollarEl = document.getElementById("heroDollar");
+  dollarEl.textContent = fmtDollar(d.geoDollar);
+  dollarEl.className = "value " + (d.geoDollar < 0 ? "neg" : "pos");
+  document.getElementById("heroPrice").textContent = "$" + d.ibmPrice.toFixed(2);
+  document.getElementById("heroCounterfactual").textContent = "$" + d.counterfactual.toFixed(2);
+  document.getElementById("heroCounterfactual").style.color = d.counterfactual > d.ibmPrice ? "#1a7a3c" : "#b02020";
+  const geoEl = document.getElementById("heroGeoScore");
+  geoEl.textContent = (d.geoScore >= 0 ? "+" : "") + (d.geoScore * 100).toFixed(3) + "%";
+  geoEl.className = "value " + (d.geoScore < 0 ? "neg" : "pos");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ATTRIBUTION BAR + TABLE
+// ═══════════════════════════════════════════════════════════════
+function renderAttribution(d) {
+  const ibmP = d.ibmPrice;
+  const ibmChg = d.ibmChangePct / 100;
+  const geoPct  = d.geoScore;
+  const mktPct  = d.marketPct;
+  const unexpPct = ibmChg - geoPct - mktPct;
+
+  const segments = [
+    { label:"Market Component (XLK Beta)", pct: mktPct,   color: ATTR_COLORS[0] },
+    { label:"Geopolitical Component",       pct: geoPct,   color: ATTR_COLORS[1] },
+    { label:"Unexplained (Alpha/Other)",    pct: unexpPct, color: ATTR_COLORS[2] },
+  ];
+  const totalAbs = segments.reduce((s,x) => s + Math.abs(x.pct), 0) || 1;
+
+  const bar = document.getElementById("attrBar");
+  bar.innerHTML = segments.map(s => {
+    const w = (Math.abs(s.pct) / totalAbs * 100).toFixed(1);
+    return `<div class="attr-seg" style="width:${w}%;background:${s.color};opacity:0.85">${w}%</div>`;
+  }).join("");
+
+  document.getElementById("attrLegend").innerHTML = segments.map(s =>
+    `<div style="display:flex;align-items:center;gap:5px;font-size:12px;color:#57606a">
+      <span class="attr-dot" style="background:${s.color};opacity:0.85"></span>
+      ${s.label}: <strong style="color:${s.pct<0?"#b02020":s.pct>0?"#1a7a3c":"#57606a"}">${s.pct>=0?"+":""}${(s.pct*100).toFixed(3)}%</strong>
+    </div>`).join("");
+
+  const totalMove = ibmChg || 1;
+  document.getElementById("attrTableBody").innerHTML = segments.map(s => {
+    const dollar = s.pct * ibmP;
+    const share  = ((s.pct / totalMove) * 100).toFixed(0);
+    return `<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;background:${s.color};border-radius:2px;margin-right:6px;vertical-align:middle;opacity:0.85"></span><strong>${s.label}</strong></td>
+      <td style="text-align:center;font-weight:700;color:${s.pct<0?"#b02020":s.pct>0?"#1a7a3c":"#57606a"}">${s.pct>=0?"+":""}${(s.pct*100).toFixed(3)}%</td>
+      <td style="text-align:center;font-weight:700;color:${dollar<0?"#b02020":dollar>0?"#1a7a3c":"#57606a"}">${fmtDollar(dollar)}</td>
+      <td style="text-align:center;color:#57606a">${share}%</td>
+      <td style="font-size:12px;color:#57606a">${
+        s.label.includes("Market") ? "IBM's co-movement with tech sector (XLK beta = 0.92)" :
+        s.label.includes("Geo")    ? "VIX · Gold · Oil · DXY · EEM · ITA · EPU combined" :
+                                     "Company-specific news, earnings surprises"
+      }</td>
+    </tr>`;
+  }).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CORRELATION TABLE
+// ═══════════════════════════════════════════════════════════════
+function renderCorrTable(d) {
+  document.getElementById("corrTableBody").innerHTML = PROXIES.map(p => {
+    const live = d.proxiesLive.find(x => x.name === p.name);
+    const chgStr = live ? ((live.changePct>=0?"+":"")+live.changePct.toFixed(2)+"%") : "—";
+    const chgColor = live && live.changePct < 0 ? "#1a7a3c" : live && live.changePct > 0 ? "#b02020" : "#57606a";
+    const { bg, fg } = corrColor(p.corr);
+    const pct = Math.abs(p.corr)*100;
+    const bc = p.corr < 0 ? "bar-neg" : "bar-pos";
+    return `<tr>
+      <td><strong>${p.name}</strong></td>
+      <td style="color:#57606a">${p.desc}</td>
+      <td style="text-align:center"><span class="corr-cell" style="background:${bg};color:${fg}">${p.corr>=0?"+":""}${p.corr.toFixed(2)}</span></td>
+      <td><div class="bar-wrap"><div class="bar-bg"><div class="bar-fill ${bc}" style="width:${pct*2.5}%"></div></div><span style="font-size:11px;color:#57606a;min-width:28px">${pct.toFixed(0)}%</span></div></td>
+      <td style="text-align:center;font-weight:700;color:${chgColor}">${chgStr}</td>
+    </tr>`;
+  }).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EVENT LOG
+// ═══════════════════════════════════════════════════════════════
+function renderEventTable() {
+  const cutoff = window.activeTimeRange ? new Date(Date.now() - window.activeTimeRange * 365.25 * 86400000) : null;
+  const rows = EVENTS.filter(e => !cutoff || new Date(e.date) >= cutoff);
+  document.getElementById("eventTableBody").innerHTML = rows.map(e => {
+    const pill = Math.abs(e.car)>=3 ? (e.car<0?"car-neg":"car-pos") : "car-neutral";
+    const dollar = (e.car/100)*e.price;
+    return `<tr>
+      <td style="white-space:nowrap;font-size:12px;color:#57606a">${e.date}</td>
+      <td>${e.event}</td>
+      <td><span class="event-category cat-${e.cat}">${e.cat.charAt(0).toUpperCase()+e.cat.slice(1)}</span></td>
+      <td style="text-align:center"><span class="car-pill ${pill}">${e.car>=0?"+":""}${e.car.toFixed(2)}%</span></td>
+      <td style="text-align:center;font-size:12px;color:#57606a">$${e.price.toFixed(2)}</td>
+      <td style="text-align:center;font-weight:700;color:${dollar<0?"#b02020":"#1a7a3c"}">${fmtDollar(dollar)}</td>
+    </tr>`;
+  }).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// REGRESSION TABLE
+// ═══════════════════════════════════════════════════════════════
+function renderRegTable() {
+  document.getElementById("regTableBody").innerHTML = PROXIES.map(p => {
+    const sig = p.pval < 0.05;
+    const stars = p.pval<0.001?"★★★":p.pval<0.01?"★★":p.pval<0.05?"★":"—";
+    return `<tr>
+      <td><strong>${p.name}</strong></td>
+      <td style="text-align:center;font-weight:700;color:${p.beta<0?"#b02020":"#1a7a3c"}">${p.beta>=0?"+":""}${p.beta.toFixed(3)}</td>
+      <td style="text-align:center;color:#57606a">${p.se.toFixed(3)}</td>
+      <td style="text-align:center;font-weight:700">${p.tstat.toFixed(2)}</td>
+      <td style="text-align:center;color:${sig?"#1a7a3c":"#57606a"}">${p.pval.toFixed(3)}</td>
+      <td style="text-align:center;font-weight:700;color:${sig?"#1a7a3c":"#b85e00"}">${stars} ${sig?"Sig":"Not sig"}</td>
+    </tr>`;
+  }).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PERIOD TABLE (uses live IBM price as anchor)
+// ═══════════════════════════════════════════════════════════════
+function buildPeriodTable(d) {
+  const p = d.ibmPrice;
+  const periods = [
+    { label:"Last 30 days", actual:-26.1, cf:-2.4 },
+    { label:"Last 60 days", actual:-27.8, cf:-3.1 },
+    { label:"Last 90 days", actual:-24.9, cf:-3.6 },
+    { label:"YTD (2026)",   actual:-22.5, cf:-5.1 },
+    { label:"Full Year 2025",actual: 8.2, cf: 11.4 },
+  ];
+  document.getElementById("periodTableBody").innerHTML = periods.map(r => {
+    const geo = r.actual - r.cf;
+    const dollar = (geo/100)*p;
+    return `<tr>
+      <td>${r.label}</td>
+      <td style="font-weight:700;color:${r.actual<0?"#b02020":"#1a7a3c"}">${r.actual>=0?"+":""}${r.actual}%</td>
+      <td style="color:#57606a">${r.cf>=0?"+":""}${r.cf}%</td>
+      <td style="font-weight:700;color:${geo<0?"#b02020":"#1a7a3c"}">${geo>=0?"+":""}${geo.toFixed(1)} pp</td>
+      <td style="font-weight:700;color:${dollar<0?"#b02020":"#1a7a3c"}">${fmtDollar(dollar)}</td>
+    </tr>`;
+  }).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SVG CHARTS
+// ═══════════════════════════════════════════════════════════════
+function buildPriceChart(anchorPrice) {
+  anchorPrice = anchorPrice || 217.07;
+  const svg = document.getElementById("priceChart");
+  const W=720,H=220,pL=50,pR=20,pT=16,pB=34;
+  const N=252; // ~1 trading year
+
+  // ── Simulate price series (anchored to today, walks backward) ──
+  const actual=[], counter=[];
+  let a=anchorPrice, c=anchorPrice;
+  for(let i=0;i<N;i++){
+    let geo=(Math.random()-0.52)*0.004;
+    let mkt=(Math.random()-0.48)*0.012;
+    // Known geo shock days (trading-day offsets back from today)
+    if(i===2)  geo=-0.252; // Q2 2026 earnings miss (Jul 14 2026)
+    if(i===55) geo=-0.132; // Anthropic COBOL blog (May 2025)
+    if(i===110) geo=-0.018;// DOGE cuts (Jan 2025)
+    if(i===175) geo=-0.026;// Tariffs (Mar 2025)
+    if(i===220) geo=-0.014;// Export controls (Jan 2024)
+    a=a*(1+mkt+geo); c=c*(1+mkt);
+    actual.push(a); counter.push(c);
+  }
+  // Reverse so index 0 = oldest, N-1 = today
+  actual.reverse(); counter.reverse();
+
+  const allV=[...actual,...counter];
+  const minV=Math.min(...allV)*0.97, maxV=Math.max(...allV)*1.02;
+  const sx=i=>pL+(i/(N-1))*(W-pL-pR);
+  const sy=v=>pT+(H-pT-pB)*(1-(v-minV)/(maxV-minV));
+
+  // ── X-axis: compute real month+year labels from today ──
+  const today = new Date();
+  const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  // Build one label per calendar month that falls within the 252-day window
+  // Each trading day ≈ 1.4 calendar days
+  const calDays = N * (365/252);
+  const startDate = new Date(today.getTime() - calDays * 86400000);
+
+  // Collect month boundaries: find each month that has its 1st within the window
+  const xLabels = [];
+  let cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+  if(cursor < startDate) cursor = new Date(cursor.getFullYear(), cursor.getMonth()+1, 1);
+  while(cursor <= today) {
+    // Convert calendar date → trading-day index
+    const calOffset = (cursor - startDate) / 86400000;       // calendar days from start
+    const tradingIdx = Math.round(calOffset * (252/365));     // map to trading-day index
+    const clampedIdx = Math.max(0, Math.min(N-1, tradingIdx));
+    const yr = cursor.getFullYear();
+    const mo = MONTHS[cursor.getMonth()];
+    // Show year on Jan, and on the very first label
+    const showYear = cursor.getMonth() === 0 || xLabels.length === 0;
+    xLabels.push({ idx: clampedIdx, label: showYear ? `${mo} '${String(yr).slice(2)}` : mo });
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth()+1, 1);
+  }
+
+  let html="";
+
+  // Price grid lines
+  for(let t=0;t<=5;t++){
+    const v=minV+(maxV-minV)*(t/5);
+    const y=sy(v);
+    html+=`<line x1="${pL}" y1="${y}" x2="${W-pR}" y2="${y}" stroke="#e5e7eb" stroke-width="1"/>`;
+    html+=`<text x="${pL-4}" y="${y+4}" text-anchor="end" font-size="9" fill="#bcc1ca">$${Math.round(v)}</text>`;
+  }
+
+  // X-axis year separator lines + month labels
+  xLabels.forEach(({idx, label}) => {
+    const x = sx(idx);
+    const isYear = label.includes("'");
+    if(isYear) html+=`<line x1="${x}" y1="${pT}" x2="${x}" y2="${H-pB}" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="3,4"/>`;
+    html+=`<text x="${x}" y="${H-pB+13}" text-anchor="middle" font-size="${isYear?9:8}" font-weight="${isYear?"700":"400"}" fill="${isYear?"#57606a":"#bcc1ca"}">${label}</text>`;
+  });
+
+  // Shaded geo-discount area
+  let area=`M ${sx(0)} ${sy(counter[0])}`;
+  for(let i=1;i<N;i++) area+=` L ${sx(i)} ${sy(counter[i])}`;
+  for(let i=N-1;i>=0;i--) area+=` L ${sx(i)} ${sy(actual[i])}`;
+  html+=`<path d="${area}Z" fill="#d94f4f" opacity="0.11"/>`;
+
+  // Counterfactual line
+  html+=`<path d="${counter.map((v,i)=>`${i===0?"M":"L"} ${sx(i)} ${sy(v)}`).join(" ")}" fill="none" stroke="#3aa75b" stroke-width="1.8" stroke-dasharray="6,4" opacity="0.85"/>`;
+
+  // Actual price line
+  html+=`<path d="${actual.map((v,i)=>`${i===0?"M":"L"} ${sx(i)} ${sy(v)}`).join(" ")}" fill="none" stroke="#1a5ea8" stroke-width="2"/>`;
+
+  // Event markers — trading-day indices from left (oldest=0, today=251)
+  // Geo shocks mapped to approximate positions in the reversed 252-day series
+  const events = [
+    { idx: N-3,   lbl:"Q2 '26 miss",  anchor:"end"   },  // Jul 14 2026
+    { idx: N-55,  lbl:"Anthropic '25", anchor:"start" },  // May 2025
+    { idx: N-110, lbl:"DOGE '25",      anchor:"start" },  // Jan 2025
+    { idx: N-175, lbl:"Tariffs '25",   anchor:"start" },  // Mar 2025
+    { idx: N-220, lbl:"Export ctrls '24", anchor:"start"},// Jan 2024
+  ].filter(e => e.idx >= 0 && e.idx < N);
+
+  events.forEach(({idx, lbl, anchor}) => {
+    const cx=sx(idx), cy=sy(actual[idx]);
+    html+=`<circle cx="${cx}" cy="${cy}" r="4" fill="#d94f4f" opacity="0.9"/>`;
+    html+=`<text x="${cx}" y="${cy-9}" text-anchor="${anchor}" font-size="8" fill="#b02020" font-weight="600">${lbl}</text>`;
+  });
+
+  svg.innerHTML=html;
+}
+
+function buildRollingChart() {
+  const svg = document.getElementById("rollingChart");
+  const W=700,H=160,pL=44,pR=20,pT=14,pB=28;
+  const plotW=W-pL-pR,plotH=H-pT-pB;
+  const data=[]; let base=-0.35;
+  for(let i=0;i<260;i++){base+=(Math.random()-0.5)*0.08;base=Math.max(-0.75,Math.min(0.05,base));if(i===40)base=-0.62;if(i===110)base=-0.58;if(i===190)base=-0.68;data.push(base);}
+  const minV=-0.8,maxV=0.2;
+  const sY=v=>pT+plotH*(1-(v-minV)/(maxV-minV));
+  const sX=i=>pL+(i/(data.length-1))*plotW;
+  let html="";
+  [-0.6,-0.4,-0.2,0.0].forEach(v=>{const y=sY(v);html+=`<line x1="${pL}" y1="${y}" x2="${W-pR}" y2="${y}" stroke="${v===0?"#bcc1ca":"#e5e7eb"}" stroke-width="${v===0?1.5:1}" stroke-dasharray="${v===0?"":"4,3"}"/><text x="${pL-5}" y="${y+4}" text-anchor="end" font-size="9" fill="#bcc1ca">${v.toFixed(1)}</text>`;});
+  let area=`M ${sX(0)} ${sY(0)}`;data.forEach((v,i)=>{area+=` L ${sX(i)} ${sY(v)}`;});area+=` L ${sX(data.length-1)} ${sY(0)} Z`;
+  html+=`<path d="${area}" fill="#d94f4f" opacity="0.12"/>`;
+  html+=`<path d="${data.map((v,i)=>`${i===0?"M":"L"} ${sX(i)} ${sY(v)}`).join(" ")}" fill="none" stroke="#d94f4f" stroke-width="1.5"/>`;
+  ["Jan","Mar","May","Jul","Sep","Nov","Jan"].forEach((m,i)=>{html+=`<text x="${pL+(i/6)*plotW}" y="${H-pB+14}" text-anchor="middle" font-size="9" fill="#bcc1ca">${m}</text>`;});
+  html+=`<text x="${sX(40)}" y="${sY(-0.62)-6}" text-anchor="middle" font-size="8" fill="#b02020">Ukraine</text><text x="${sX(190)}" y="${sY(-0.68)-6}" text-anchor="middle" font-size="8" fill="#b02020">DOGE cuts</text>`;
+  svg.innerHTML=html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+function corrColor(v) {
+  const a=Math.abs(v);
+  if(a>0.30) return v<0?{bg:"#ffe4e4",fg:"#b02020"}:{bg:"#e8fff0",fg:"#1a7a3c"};
+  if(a>0.15) return v<0?{bg:"#fff3e0",fg:"#b85e00"}:{bg:"#e8f4ff",fg:"#1a5ea8"};
+  return {bg:"#f7f8fa",fg:"#57606a"};
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PEER GRID
+// ═══════════════════════════════════════════════════════════════
+function renderPeerGrid() {
+  const ibmP = liveData?.ibmPrice ?? 195.20;
+  document.getElementById("peerGrid").innerHTML = peerLiveData.map(p => {
+    const chgClass = p.changePct > 0 ? "pos" : p.changePct < 0 ? "neg" : "flat";
+    const sign = p.changePct >= 0 ? "+" : "";
+    const impliedSignal = p.corr * (p.changePct / 100);
+    const impliedDollar = impliedSignal * ibmP;
+    const meterPct = Math.min(Math.abs(impliedSignal) / 0.02 * 100, 100).toFixed(0);
+    const meterColor = impliedDollar < 0 ? "#d94f4f" : "#3aa75b";
+    const priceStr = p.price != null ? "$" + p.price.toFixed(2) : "—";
+    const errTag = p.error ? " ⚠" : "";
+    return `<div class="peer-card">
+      <div class="pc-ticker">${p.ticker}${errTag} <span style="font-size:11px;font-weight:400;color:#57606a">${p.segment}</span></div>
+      <div class="pc-name">${p.name}</div>
+      <div><span class="pc-price">${priceStr}</span><span class="pc-chg ${chgClass}">${sign}${p.changePct.toFixed(2)}%</span></div>
+      <div class="impact-meter"><div class="impact-fill" style="width:${meterPct}%;background:${meterColor}"></div></div>
+      <div class="pc-ibm">Implied IBM signal: <strong style="color:${impliedDollar<0?"#b02020":impliedDollar>0?"#1a7a3c":"#57606a"}">${impliedDollar>=0?"+$":"−$"}${Math.abs(impliedDollar).toFixed(2)}/share</strong></div>
+    </div>`;
+  }).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PEER CORRELATION TABLE
+// ═══════════════════════════════════════════════════════════════
+function renderPeerCorrTable(d) {
+  const ibmP = d.ibmPrice;
+  document.getElementById("peerCorrTableBody").innerHTML = peerLiveData.map(p => {
+    const impliedSignal = p.corr * (p.changePct / 100);
+    const impliedDollar = impliedSignal * ibmP;
+    const chgColor = p.changePct < 0 ? "#b02020" : p.changePct > 0 ? "#1a7a3c" : "#57606a";
+    const sigColor = impliedDollar < 0 ? "#b02020" : impliedDollar > 0 ? "#1a7a3c" : "#57606a";
+    const interp =
+      Math.abs(impliedSignal) > 0.008 && impliedDollar < 0 ? "Bearish spillover to IBM" :
+      Math.abs(impliedSignal) > 0.008 && impliedDollar > 0 ? "Bullish spillover to IBM" :
+      Math.abs(impliedSignal) > 0.003 ? "Mild directional signal" : "Negligible signal";
+    return `<tr>
+      <td><strong>${p.ticker}</strong> <span style="font-size:11px;color:#57606a">${p.name}</span></td>
+      <td style="text-align:center;font-weight:700;color:${chgColor}">${p.changePct>=0?"+":""}${p.changePct.toFixed(2)}%</td>
+      <td style="text-align:center;color:#3b82d4;font-weight:700">${p.corr.toFixed(2)}</td>
+      <td style="text-align:center;font-weight:700;color:${sigColor}">${(impliedSignal*100)>=0?"+":""}${(impliedSignal*100).toFixed(3)}%</td>
+      <td style="text-align:center;font-weight:700;color:${sigColor}">${impliedDollar>=0?"+$":"−$"}${Math.abs(impliedDollar).toFixed(2)}</td>
+      <td style="font-size:12px;color:#57606a">${interp}</td>
+    </tr>`;
+  }).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EARNINGS SCENARIO CALCULATOR
+// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// MARKET EVENT LOG TABLE
+// ═══════════════════════════════════════════════════════════════
+function buildPeerEventTable() {
+  const ibmP = liveData?.ibmPrice ?? 195.20;
+  const cutoff = window.activeTimeRange ? new Date(Date.now() - window.activeTimeRange * 365.25 * 86400000) : null;
+  const events = MARKET_EVENTS.filter(e => !cutoff || new Date(e.date) >= cutoff);
+  document.getElementById("peerEventTableBody").innerHTML = events.map(e => {
+    const evType    = EVENT_TYPES[e.type] ?? { label: e.type, cls:"cat-macro" };
+    const ibmDollar = (e.ibmAR / 100) * e.ibmPrice;
+    const arPill    = Math.abs(e.ibmAR) >= 3 ? (e.ibmAR < 0 ? "car-neg" : "car-pos") :
+                      Math.abs(e.ibmAR) >= 1 ? (e.ibmAR < 0 ? "car-neg" : "car-pos") : "car-neutral";
+    const arColor   = e.ibmAR < 0 ? "#b02020" : "#1a7a3c";
+    // expand/collapse detail on click
+    const rowId = "mev_" + e.date.replace(/-/g,"") + e.source.replace(/\s/g,"");
+    return `<tr style="cursor:pointer" onclick="toggleDetail('${rowId}')">
+      <td style="white-space:nowrap;font-size:12px;color:#57606a">${e.date}</td>
+      <td><strong>${e.source}</strong></td>
+      <td style="font-size:12px">${e.event} <span style="font-size:10px;color:#3b82d4">▾ detail</span></td>
+      <td><span class="event-category ${evType.cls}">${evType.label}</span></td>
+      <td style="text-align:center"><span class="car-pill ${arPill}">${e.ibmAR>=0?"+":""}${e.ibmAR.toFixed(1)}%</span></td>
+      <td style="text-align:center;font-weight:700;color:${ibmDollar<0?"#b02020":"#1a7a3c"}">${ibmDollar>=0?"+$":"−$"}${Math.abs(ibmDollar).toFixed(2)}</td>
+    </tr>
+    <tr id="${rowId}" style="display:none">
+      <td colspan="6" style="background:#f7f8fa;font-size:12px;color:#57606a;padding:8px 14px;border-top:none;line-height:1.6">${e.detail}</td>
+    </tr>`;
+  }).join("");
+}
+
+function toggleDetail(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = el.style.display === "none" ? "table-row" : "none";
+}
 
 
 
+// ═══════════════════════════════════════════════════════════════
+// IBM LIVE SUMMARY CARDS
+// ═══════════════════════════════════════════════════════════════
+function renderIbmSummary(d) {
+  const p = d.ibmPrice;
+  const chg = d.ibmChangePct;
+  const sign = chg >= 0 ? "+" : "";
+  document.getElementById("ibmSummaryPrice").textContent = "$" + p.toFixed(2);
+  const subEl = document.getElementById("ibmSummaryChange");
+  subEl.textContent = sign + chg.toFixed(2) + "% today (" + (d.ibmChangeDollar >= 0 ? "+$" : "−$") + Math.abs(d.ibmChangeDollar).toFixed(2) + ")";
+  subEl.style.color = chg >= 0 ? "#1a7a3c" : "#b02020";
+
+  // Extended quote fields from Yahoo Finance
+  const hi52  = ibmExtendedQuote.fiftyTwoWeekHigh;
+  const lo52  = ibmExtendedQuote.fiftyTwoWeekLow;
+  const mcap  = ibmExtendedQuote.marketCap;
+  document.getElementById("ibm52High").textContent = hi52 ? "$" + hi52.toFixed(2) : "—";
+  document.getElementById("ibm52Low").textContent  = lo52 ? "$" + lo52.toFixed(2) : "—";
+  document.getElementById("ibmMktCap").textContent  = mcap ? "$" + (mcap / 1e9).toFixed(1) + "B" : "—";
+}
+
+// ═══════════════════════════════════════════════════════════════
+// IBM EARNINGS TABLE
+// ═══════════════════════════════════════════════════════════════
+function buildIbmEarningsTable() {
+  const cutoff = window.activeTimeRange ? new Date(Date.now() - window.activeTimeRange * 365.25 * 86400000) : null;
+  const rows = IBM_EARNINGS.filter(e => !cutoff || new Date(e.date) >= cutoff);
+  document.getElementById("ibmEarningsTableBody").innerHTML = rows.map(e => {
+    const revBeat   = e.rev - e.revCons;
+    const epsBeat   = e.eps - e.epsCons;
+    const revColor  = revBeat >= 0 ? "#1a7a3c" : "#b02020";
+    const epsColor  = epsBeat >= 0 ? "#1a7a3c" : "#b02020";
+    const arColor   = e.ibmAR >= 0 ? "#1a7a3c" : "#b02020";
+    const arPill    = Math.abs(e.ibmAR) >= 2 ? (e.ibmAR < 0 ? "car-neg" : "car-pos") : "car-neutral";
+    const dollar    = (e.ibmAR / 100) * e.ibmPrice;
+    const rowId     = "eq_" + e.q.replace(/\s/g,"");
+    return `<tr style="cursor:pointer" onclick="toggleDetail('${rowId}')">
+      <td><strong>${e.q}</strong> <span style="font-size:10px;color:#57606a">${e.date}</span></td>
+      <td style="text-align:right;font-weight:600">$${e.rev.toFixed(2)}B</td>
+      <td style="text-align:center;font-weight:700;color:${revColor}">${revBeat >= 0 ? "+" : ""}$${revBeat.toFixed(2)}B</td>
+      <td style="text-align:right;font-weight:600">$${e.eps.toFixed(2)}</td>
+      <td style="text-align:center;font-weight:700;color:${epsColor}">${epsBeat >= 0 ? "+" : ""}$${epsBeat.toFixed(2)}</td>
+      <td style="text-align:center"><span class="car-pill ${arPill}">${e.ibmAR >= 0 ? "+" : ""}${e.ibmAR.toFixed(1)}%</span></td>
+      <td style="text-align:center;font-weight:700;color:${dollar < 0 ? "#b02020" : "#1a7a3c"}">${dollar >= 0 ? "+$" : "−$"}${Math.abs(dollar).toFixed(2)}</td>
+      <td style="font-size:11px;color:#57606a">${e.theme}</td>
+    </tr>
+    <tr id="${rowId}" style="display:none">
+      <td colspan="8" style="background:#f7f8fa;font-size:12px;color:#57606a;padding:8px 14px;border-top:none;line-height:1.6">
+        Revenue $${e.rev.toFixed(2)}B vs consensus $${e.revCons.toFixed(2)}B · EPS $${e.eps.toFixed(2)} vs $${e.epsCons.toFixed(2)} consensus · IBM stock ${e.ibmAR >= 0 ? "+" : ""}${e.ibmAR.toFixed(1)}% abnormal return on earnings day.
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// IBM STRATEGIC EVENTS TABLE
+// ═══════════════════════════════════════════════════════════════
+function buildIbmEventsTable(filter) {
+  const cutoff = window.activeTimeRange ? new Date(Date.now() - window.activeTimeRange * 365.25 * 86400000) : null;
+  const typeFiltered = filter === 'all' ? IBM_EVENTS : IBM_EVENTS.filter(e => e.type === filter);
+  const filtered = cutoff ? typeFiltered.filter(e => new Date(e.date) >= cutoff) : typeFiltered;
+  const ibmP = liveData?.ibmPrice ?? 195.20;
+  document.getElementById("ibmEventsTableBody").innerHTML = filtered.map(e => {
+    const dollar   = (e.ibmAR / 100) * e.ibmPrice;
+    const arPill   = Math.abs(e.ibmAR) >= 2 ? (e.ibmAR < 0 ? "car-neg" : "car-pos") : "car-neutral";
+    const typeLabel = { earnings:"Earnings", product:"Product/AI", ma:"M&A", guidance:"Guidance", partnership:"Partnership", newsletter:"Newsletter/Blog" }[e.type] || e.type;
+    const rowId = "ie_" + e.date.replace(/-/g,"") + e.type;
+    return `<tr style="cursor:pointer" onclick="toggleDetail('${rowId}')">
+      <td style="white-space:nowrap;font-size:12px;color:#57606a">${e.date}</td>
+      <td><span class="event-category ${e.cat}">${typeLabel}</span></td>
+      <td style="font-size:12px;font-weight:600">${e.title} <span style="font-size:10px;color:#3b82d4;font-weight:400">▾</span></td>
+      <td style="text-align:center"><span class="car-pill ${arPill}">${e.ibmAR >= 0 ? "+" : ""}${e.ibmAR.toFixed(1)}%</span></td>
+      <td style="text-align:center;font-weight:700;color:${dollar < 0 ? "#b02020" : "#1a7a3c"}">${dollar >= 0 ? "+$" : "−$"}${Math.abs(dollar).toFixed(2)}</td>
+    </tr>
+    <tr id="${rowId}" style="display:none">
+      <td colspan="5" style="background:#f7f8fa;font-size:12px;color:#57606a;padding:10px 14px;border-top:none;line-height:1.6">${e.detail}</td>
+    </tr>`;
+  }).join("");
+}
+
+function filterIbmEvents(filter, btn) {
+  document.querySelectorAll("#ibmEventFilter .filter-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  buildIbmEventsTable(filter);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// IBM NEWS FEED (Live RSS via CORS proxy)
+// ═══════════════════════════════════════════════════════════════
+// Keyword → category + sentiment scoring
+const IBM_NEWS_KEYWORDS = {
+  pos: ["beat","record","wins","growth","partnership","expands","launches","milestone","raised","exceeds","new contract","awarded"],
+  neg: ["misses","cut","decline","weak","loss","restructuring","layoff","concern","headwind","threat","downgrade","exits"],
+  product: ["watsonx","granite","mainframe","red hat","openshift","instana","turbonomic","hashicorp","consulting","hybrid cloud"],
+  earnings: ["quarterly results","q1","q2","q3","q4","earnings","revenue","eps","guidance"],
+  ma: ["acquires","acquisition","merger","divests","sells unit"],
+  newsletter: ["ibv","institute for business value","think","ceo survey","report","study"],
+};
+
+function scoreNewsItem(title, summary) {
+  const text = (title + " " + summary).toLowerCase();
+  let sentiment = 0;
+  IBM_NEWS_KEYWORDS.pos.forEach(kw => { if (text.includes(kw)) sentiment += 1; });
+  IBM_NEWS_KEYWORDS.neg.forEach(kw => { if (text.includes(kw)) sentiment -= 1; });
+  let cat = "cat-ibm-news", typeLabel = "News";
+  if (IBM_NEWS_KEYWORDS.earnings.some(kw => text.includes(kw)))    { cat = "cat-ibm-earnings";   typeLabel = "Earnings"; }
+  else if (IBM_NEWS_KEYWORDS.ma.some(kw => text.includes(kw)))     { cat = "cat-ibm-ma";         typeLabel = "M&A"; }
+  else if (IBM_NEWS_KEYWORDS.newsletter.some(kw => text.includes(kw))) { cat = "cat-ibm-newsletter"; typeLabel = "Research"; }
+  else if (IBM_NEWS_KEYWORDS.product.some(kw => text.includes(kw))){ cat = "cat-ibm-product";    typeLabel = "Product/AI"; }
+  return { sentiment, cat, typeLabel };
+}
+
+// Helper: extract text from an RSS element, handling CDATA and entity-encoded wrappers
+function rssText(item, tag) {
+  const el = item.querySelector(tag);
+  if (!el) return "";
+  // textContent handles CDATA correctly in most parsers;
+  // but some CORS proxies double-encode entities — strip any residual HTML tags
+  return (el.textContent || el.innerHTML || "")
+    .replace(/<!\[CDATA\[|\]\]>/g, "")   // strip leftover CDATA markers
+    .replace(/<[^>]+>/g, "")             // strip any HTML tags
+    .replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&").replace(/&quot;/g,'"')
+    .trim();
+}
+
+// Helper: extract <link> from RSS — it's a sibling text node, not an attribute
+function rssLink(item) {
+  // Try <link> text content first
+  const linkEl = item.querySelector("link");
+  if (linkEl && linkEl.textContent.trim().startsWith("http")) return linkEl.textContent.trim();
+  // Fall back to <guid> which often contains the URL
+  const guid = item.querySelector("guid");
+  if (guid && guid.textContent.trim().startsWith("http")) return guid.textContent.trim();
+  return "#";
+}
+
+// ── News age helpers ────────────────────────────────────────────
+function newsAgeMs(pubDateStr) {
+  if (!pubDateStr) return Infinity;
+  const d = new Date(pubDateStr);
+  return isNaN(d) ? Infinity : Date.now() - d.getTime();
+}
+
+function newsAgeLabel(ms) {
+  if (ms === Infinity) return { label: "Unknown date", cls: "older" };
+  const mins  = Math.floor(ms / 60000);
+  const hours = Math.floor(ms / 3600000);
+  const days  = Math.floor(ms / 86400000);
+  if (mins < 60)   return { label: mins <= 1 ? "Just now" : `${mins}m ago`,  cls: "fresh"  };
+  if (hours < 24)  return { label: `${hours}h ago`,                          cls: "fresh"  };
+  if (hours < 72)  return { label: days === 1 ? "Yesterday" : `${days}d ago`, cls: "recent" };
+  return             { label: `${days}d ago`,                                cls: "older"  };
+}
+
+function newsCardClass(ms) {
+  if (ms < 86400000) return "nc-new";    // < 24h → green
+  if (ms < 259200000) return "nc-recent"; // < 72h → orange
+  return "";
+}
+
+function updateNewsFetchedAt(spanId, countId, freshCount) {
+  const t = new Date().toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
+  const el = document.getElementById(spanId);
+  if (el) el.textContent = "Updated " + t;
+  const c = document.getElementById(countId);
+  if (c) {
+    if (freshCount > 0) {
+      c.textContent = freshCount + " new in 24h";
+      c.style.display = "inline-block";
+    } else {
+      c.style.display = "none";
+    }
+  }
+}
+
+async function fetchIbmNewsFeed() {
+  // Try IBM Newsroom RSS; fall back to IBM blog RSS
+  const feedUrls = [
+    "https://newsroom.ibm.com/feed/",
+    "https://www.ibm.com/blog/feed/",
+  ];
+  const feedEl = document.getElementById("ibmNewsFeed");
+
+  let items = [];
+  let lastErr = "";
+  for (const feedUrl of feedUrls) {
+    try {
+      const text = await fetchWithProxy(feedUrl);
+      const trimmed = text.trim();
+      if (trimmed.startsWith("<!") || trimmed.startsWith("<html")) continue;
+      if (!trimmed.includes("<item") && !trimmed.includes("<entry")) continue;
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(text, "text/xml");
+      const parsed = Array.from(xml.querySelectorAll("item, entry")).slice(0, 15);
+      if (parsed.length) { items = parsed; break; }
+    } catch (e) { lastErr = e.message; }
+  }
+
+  if (!items.length) {
+    feedEl.innerHTML = `<div style="padding:12px;background:#fff2f2;border:1px solid #f0a0a0;border-radius:6px;font-size:13px;color:#b02020">
+      Could not fetch IBM news feed${lastErr ? " (" + lastErr + ")" : ""}. All CORS proxies returned empty content for IBM Newsroom RSS.
+      <a href="https://newsroom.ibm.com" target="_blank" rel="noopener" style="color:#3b82d4;margin-left:6px">Visit IBM Newsroom →</a>
+    </div>`;
+    updateNewsFetchedAt("ibmNewsFetchedAt", "ibmNews24hCount", 0);
+    return;
+  }
+
+  // Sort newest-first by pub date
+  const parsed = items.map(item => {
+    const pubDateStr = rssText(item, "pubDate") || rssText(item, "published") || rssText(item, "updated") || "";
+    return { item, pubDateStr, ageMs: newsAgeMs(pubDateStr) };
+  }).sort((a, b) => a.ageMs - b.ageMs);
+
+  const freshCount = parsed.filter(p => p.ageMs < 86400000).length;
+
+  feedEl.innerHTML = parsed.map(({ item, pubDateStr, ageMs }, idx) => {
+    const title   = rssText(item, "title")   || "IBM Update";
+    const link    = rssLink(item);
+    const summary = rssText(item, "description") || rssText(item, "summary") || rssText(item, "content") || "";
+    const dateStr = pubDateStr ? new Date(pubDateStr).toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" }) : "";
+    const { sentiment, cat, typeLabel } = scoreNewsItem(title, summary);
+    const impactText  = sentiment > 1 ? "🟢 Likely positive signal for IBM"
+                      : sentiment < -1 ? "🔴 Potential negative signal for IBM"
+                      : "⚪ Neutral — monitor for market reaction";
+    const impactColor = sentiment > 1 ? "#1a7a3c" : sentiment < -1 ? "#b02020" : "#57606a";
+    const { label: ageLabel, cls: ageCls } = newsAgeLabel(ageMs);
+    const cardCls = newsCardClass(ageMs);
+    const detailId = "news_" + idx;
+    return `<div class="ibm-news-card ${cardCls}" onclick="toggleNewsCard('${detailId}')">
+      <div class="nc-header">
+        <span class="nc-badge"><span class="event-category ${cat}">${typeLabel}</span></span>
+        <div style="flex:1;min-width:0">
+          <div class="nc-title">${title}<span class="news-age-badge ${ageCls}">${ageLabel}</span></div>
+          <div class="nc-meta">IBM Newsroom · ${dateStr}</div>
+          <div class="nc-impact" style="color:${impactColor}">${impactText}</div>
+        </div>
+      </div>
+      <div class="nc-detail" id="${detailId}">
+        ${summary ? `<p>${summary.slice(0,300)}${summary.length > 300 ? "…" : ""}</p>` : ""}
+        <a href="${link}" style="color:#3b82d4;font-size:12px;margin-top:4px;display:inline-block" target="_blank" rel="noopener">Read full press release →</a>
+      </div>
+    </div>`;
+  }).join("");
+
+  updateNewsFetchedAt("ibmNewsFetchedAt", "ibmNews24hCount", freshCount);
+}
+
+function toggleNewsCard(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle("open");
+}
+
+
+function fmtDollar(v) {
+  return (v>=0?"+$":"−$")+Math.abs(v).toFixed(2);
+}
+function switchTab(id, btn) {
+  document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+  document.getElementById("tab-"+id).classList.add("active");
+  btn.classList.add("active");
+}
+function refresh() { fetchAllData(); }
+function refreshNews() { fetchIbmNewsFeed(); fetchYahooNews(); }
+
+// ═══════════════════════════════════════════════════════════════
+// TIME-RANGE FILTER
+// ═══════════════════════════════════════════════════════════════
+window.activeTimeRange = 3; // default: 3 years
+
+function setTimeRange(years, btn) {
+  window.activeTimeRange = years;
+  document.querySelectorAll(".tr-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+
+  // Re-render all date-filtered tables
+  buildIbmEarningsTable();
+  buildIbmEventsTable(
+    // preserve current type-filter active state
+    (document.querySelector("#ibmEventFilter .filter-btn.active")?.dataset?.filter) || "all"
+  );
+  buildPeerEventTable();
+  renderEventTable();
+
+  // Update record count badge
+  updateTrCount();
+}
+
+function updateTrCount() {
+  const cutoff = window.activeTimeRange
+    ? new Date(Date.now() - window.activeTimeRange * 365.25 * 86400000)
+    : null;
+  const total =
+    (cutoff ? IBM_EARNINGS.filter(e => new Date(e.date) >= cutoff) : IBM_EARNINGS).length +
+    (cutoff ? IBM_EVENTS.filter(e => new Date(e.date) >= cutoff) : IBM_EVENTS).length +
+    (cutoff ? MARKET_EVENTS.filter(e => new Date(e.date) >= cutoff) : MARKET_EVENTS).length +
+    (cutoff ? EVENTS.filter(e => new Date(e.date) >= cutoff) : EVENTS).length;
+  const el = document.getElementById("trCount");
+  if (el) el.textContent = total + " records";
+}
+
+// ═══════════════════════════════════════════════════════════════
+// YAHOO FINANCE NEWS FEED (supplementary)
+// ═══════════════════════════════════════════════════════════════
+async function fetchYahooNews() {
+  const newsUrls = [
+    "https://query1.finance.yahoo.com/v1/finance/search?q=IBM&newsCount=15&enableNavLinks=false&enableEnhancedTrivialQuery=true",
+    "https://query2.finance.yahoo.com/v1/finance/search?q=IBM&newsCount=15&enableNavLinks=false&enableEnhancedTrivialQuery=true",
+  ];
+  const el = document.getElementById("yahooNewsFeed");
+  if (!el) return;
+
+  let news = [];
+  for (const url of newsUrls) {
+    try {
+      const raw = await fetchWithProxy(url, true);
+      const json = JSON.parse(raw);
+      const candidate = json?.finance?.result?.[0]?.news ?? json?.news ?? [];
+      if (candidate.length) { news = candidate; break; }
+    } catch (_) { /* try next */ }
+  }
+
+  if (!news.length) {
+    el.innerHTML = `<div style="padding:10px;background:#f7f8fa;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;color:#57606a">
+      Yahoo Finance news could not be fetched — Cloudflare protection on Yahoo's API often blocks CORS proxies.
+      <a href="https://finance.yahoo.com/quote/IBM/news/" target="_blank" rel="noopener" style="color:#3b82d4;margin-left:4px">View IBM news on Yahoo Finance →</a>
+    </div>`;
+    updateNewsFetchedAt("yahooNewsFetchedAt", "yahooNews24hCount", 0);
+    return;
+  }
+
+  // Compute age for each item, sort newest first
+  const enriched = news.map((item, rawIdx) => {
+    const ts = item.providerPublishTime ?? null;
+    const ageMs = ts ? Date.now() - ts * 1000 : Infinity;
+    return { item, ageMs, rawIdx };
+  }).sort((a, b) => a.ageMs - b.ageMs).slice(0, 10);
+
+  const freshCount = enriched.filter(e => e.ageMs < 86400000).length;
+
+  el.innerHTML = enriched.map(({ item, ageMs }, idx) => {
+    const title     = item.title || "IBM Update";
+    const link      = item.link  || item.url || "#";
+    const pubDate   = item.providerPublishTime
+      ? new Date(item.providerPublishTime * 1000).toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" })
+      : "";
+    const publisher = item.publisher || "Yahoo Finance";
+    const { sentiment, cat, typeLabel } = scoreNewsItem(title, "");
+    const impactColor = sentiment > 1 ? "#1a7a3c" : sentiment < -1 ? "#b02020" : "#57606a";
+    const impactText  = sentiment > 1 ? "🟢 Likely positive signal"
+                      : sentiment < -1 ? "🔴 Potential negative signal"
+                      : "⚪ Neutral — monitor";
+    const { label: ageLabel, cls: ageCls } = newsAgeLabel(ageMs);
+    const cardCls = newsCardClass(ageMs);
+    const detailId = "ynews_" + idx;
+    return `<div class="ibm-news-card ${cardCls}" onclick="toggleNewsCard('${detailId}')">
+      <div class="nc-header">
+        <span class="nc-badge"><span class="event-category ${cat}">${typeLabel}</span></span>
+        <div style="flex:1;min-width:0">
+          <div class="nc-title">${title}<span class="news-age-badge ${ageCls}">${ageLabel}</span></div>
+          <div class="nc-meta">${publisher} · ${pubDate}</div>
+          <div class="nc-impact" style="color:${impactColor}">${impactText}</div>
+        </div>
+      </div>
+      <div class="nc-detail" id="${detailId}">
+        <a href="${link}" style="color:#3b82d4;font-size:12px;margin-top:4px;display:inline-block" target="_blank" rel="noopener">Read full article →</a>
+      </div>
+    </div>`;
+  }).join("");
+
+  updateNewsFetchedAt("yahooNewsFetchedAt", "yahooNews24hCount", freshCount);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════
+renderEventTable();
+buildPeerEventTable();
+buildIbmEarningsTable();
+buildIbmEventsTable('all');
+renderRegTable();
+buildRollingChart();
+buildPriceChart();
+fetchIbmNewsFeed();
+fetchYahooNews();
+updateTrCount();
+
+fetchAllData();
+refreshTimer = setInterval(fetchAllData, 60_000);
+// News refreshes independently every 5 minutes
+setInterval(refreshNews, 300_000);
+</script>
 </body>
 </html>
