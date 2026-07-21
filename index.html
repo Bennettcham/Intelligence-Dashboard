@@ -830,22 +830,41 @@ let refreshTimer = null;
 // DATA FETCHING
 // ═══════════════════════════════════════════════════════════════
 
+// Index of the last proxy that succeeded — tried first on the next call
+let _lastGoodProxyIdx = 0;
+
 async function fetchWithProxy(url, expectJson = false) {
-  for (const proxy of CORS_PROXIES) {
-    try {
-      const res = await fetch(proxy(url), { signal: AbortSignal.timeout(10000) });
-      if (!res.ok) continue;
-      const text = await res.text();
-      // Guard: reject if proxy returned its own HTML error page instead of the target content
-      if (text.trim().startsWith("<!") || text.trim().startsWith("<html")) continue;
-      // Guard: if JSON expected, confirm it parses
-      if (expectJson) {
-        try { JSON.parse(text); } catch (_) { continue; }
-      }
-      return text;
-    } catch (_) { /* try next proxy */ }
-  }
-  throw new Error("All CORS proxies failed for: " + url);
+  // Build a priority-ordered proxy list: last winner first, then the rest
+  const order = [
+    _lastGoodProxyIdx,
+    ...CORS_PROXIES.map((_, i) => i).filter(i => i !== _lastGoodProxyIdx),
+  ];
+
+  // Race all proxies in parallel with a 4-second timeout each;
+  // resolve with the first valid response, reject only when all fail
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let pending = order.length;
+
+    order.forEach(idx => {
+      const proxyUrl = CORS_PROXIES[idx](url);
+      fetch(proxyUrl, { signal: AbortSignal.timeout(4000) })
+        .then(async res => {
+          if (settled || !res.ok) { if (--pending === 0 && !settled) reject(new Error("All proxies failed")); return; }
+          const text = await res.text();
+          if (text.trim().startsWith("<!") || text.trim().startsWith("<html")) {
+            if (--pending === 0 && !settled) reject(new Error("All proxies returned HTML")); return;
+          }
+          if (expectJson) {
+            try { JSON.parse(text); } catch (_) {
+              if (--pending === 0 && !settled) reject(new Error("All proxies returned non-JSON")); return;
+            }
+          }
+          if (!settled) { settled = true; _lastGoodProxyIdx = idx; resolve(text); }
+        })
+        .catch(() => { if (--pending === 0 && !settled) reject(new Error("All proxies failed for: " + url)); });
+    });
+  });
 }
 
 async function fetchYahooQuote(ticker) {
@@ -977,15 +996,15 @@ async function fetchAllData() {
 
     renderAll();
     setStatus("live", `IBM $${ibmPrice.toFixed(2)} · Updated ${new Date().toLocaleTimeString()}`);
-
-    if (fredResult.isDemo) {
-      showBanner("ℹ️ EPU Index fell back to FRED CSV mirror (API key may be rate-limited or temporarily unavailable). Data is still accurate — sourced from fred.stlouisfed.org public data.");
-    }
+    // FRED fallback is silent — data is still valid, no banner needed
 
   } catch (err) {
-    setStatus("error", "Data fetch failed — showing last known values");
-    showBanner("⚠️ Could not reach market data: " + err.message + ". Values shown are from the last successful fetch (or demo data).");
-    if (!liveData) renderFallback();
+    setStatus("error", "Last update failed — retrying…");
+    if (!liveData) {
+      renderFallback();
+      showBanner("⚠️ Could not reach market data. Retrying automatically…");
+    }
+    // If we already have data, fail silently — next auto-refresh will recover
   }
 }
 
@@ -1008,8 +1027,14 @@ function setStatus(state, label) {
   document.getElementById("statusLabel").textContent = label;
   document.getElementById("statusTime").textContent = new Date().toLocaleTimeString();
 }
-function showBanner(msg) { const b = document.getElementById("errorBanner"); b.textContent = msg; b.style.display = "block"; }
-function hideBanner()     { document.getElementById("errorBanner").style.display = "none"; }
+let _bannerTimer = null;
+function showBanner(msg) {
+  const b = document.getElementById("errorBanner");
+  b.textContent = msg; b.style.display = "block";
+  clearTimeout(_bannerTimer);
+  _bannerTimer = setTimeout(() => { b.style.display = "none"; }, 8000);
+}
+function hideBanner() { clearTimeout(_bannerTimer); document.getElementById("errorBanner").style.display = "none"; }
 
 // ═══════════════════════════════════════════════════════════════
 // RENDER ALL
@@ -1931,7 +1956,7 @@ fetchKyndrylNews();
 updateTrCount();
 
 fetchAllData();
-refreshTimer = setInterval(fetchAllData, 60_000);
+refreshTimer = setInterval(fetchAllData, 30_000);
 // News refreshes independently every 5 minutes
 setInterval(refreshNews, 300_000);
 </script>
