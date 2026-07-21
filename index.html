@@ -445,23 +445,23 @@
       <div class="note">IBM AR = IBM Abnormal Return (IBM return minus XLK-predicted return on the event day and following 2 trading days). Dollar impact uses IBM price at event date. Negative AR on a blog post = narrative risk priced in.</div>
     </div>
 
-    <!-- Kyndryl Live News Feed -->
+    <!-- Competitor & Peer Live News Feed -->
     <div class="section">
-      <div class="section-title">Kyndryl (KD) — Live News Feed</div>
+      <div class="section-title">Competitor &amp; Peer Live News — All Peers</div>
       <div class="news-feed-header">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span id="kyndrylNews24hCount" style="display:none" class="news-24h-count"></span>
-          <span style="font-size:12px;color:#57606a">Yahoo Finance · Kyndryl headlines · auto-refreshes every 5 min</span>
+          <span id="peerNews24hCount" style="display:none" class="news-24h-count"></span>
+          <span style="font-size:12px;color:#57606a">Yahoo Finance · MSFT · ACN · ORCL · SAP · GOOGL · AMZN · KD · auto-refreshes every 5 min</span>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
-          <span class="nfh-meta"><span class="live-dot"></span><span id="kyndrylNewsFetchedAt">Fetching…</span></span>
-          <button class="news-refresh-btn" onclick="fetchKyndrylNews()">↻</button>
+          <span class="nfh-meta"><span class="live-dot"></span><span id="peerNewsFetchedAt">Fetching…</span></span>
+          <button class="news-refresh-btn" onclick="fetchPeerNews()">↻</button>
         </div>
       </div>
-      <div id="kyndrylNewsFeed" style="display:flex;flex-direction:column;gap:8px">
-        <div style="padding:12px;background:#f7f8fa;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;color:#57606a">Fetching Kyndryl headlines…</div>
+      <div id="peerNewsFeed" style="display:flex;flex-direction:column;gap:8px">
+        <div style="padding:12px;background:#f7f8fa;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;color:#57606a">Fetching competitor headlines…</div>
       </div>
-      <div class="note" style="margin-top:10px">🟢 Green border = published within 24 hours · 🟠 Orange border = 24–72 hours · Each headline is scored for its IBM read-through direction. Kyndryl is IBM's largest partner — earnings beats, margin expansion, and backlog growth are positive signals for IBM's software and Red Hat attach rates.</div>
+      <div class="note" style="margin-top:10px">🟢 Green border = published within 24 hours · 🟠 Orange border = 24–72 hours · Headlines from all 7 peers sorted newest-first. Each is scored for IBM read-through direction — moves at peers with high IBM correlation are the most significant signals.</div>
     </div>
 
   </div>
@@ -1259,23 +1259,47 @@ function buildPriceChart(anchorPrice) {
   const W=720,H=220,pL=50,pR=20,pT=16,pB=34;
   const N=252; // ~1 trading year
 
-  // ── Simulate price series (anchored to today, walks backward) ──
-  const actual=[], counter=[];
-  let a=anchorPrice, c=anchorPrice;
+  // ── Build series FORWARD from (today − 1 year) → today ──
+  // Geo shocks are injected at the correct forward index so the
+  // endpoint always lands on anchorPrice and prices stay realistic.
+
+  // Known geo events as { idx: trading-day index from start (0=oldest), geoPct }
+  // These match the MARKET_EVENTS/IBM_EVENTS entries visible in other tables.
+  // idx 0 = ~1 year ago today, idx 251 = today
+  const GEO_SHOCKS = [
+    { idx: 4,   geo:-0.014 }, // Export controls Jan 2024
+    { idx: 50,  geo:-0.018 }, // Tariffs Mar 2025 (approx calendar position)
+    { idx: 100, geo:-0.026 }, // DOGE cuts Jan 2025
+    { idx: 195, geo:-0.132 }, // Anthropic COBOL blog May 2025
+    { idx: 249, geo:-0.252 }, // Q2 2026 earnings miss Jul 14 2026
+  ];
+  const shockMap = {};
+  GEO_SHOCKS.forEach(s => { shockMap[s.idx] = s.geo; });
+
+  // Use a seeded-style deterministic random so the chart is stable across re-renders
+  let seed = 42;
+  const rand = () => { seed = (seed * 1664525 + 1013904223) & 0xffffffff; return (seed >>> 0) / 0xffffffff; };
+
+  // First pass: accumulate total geo impact so we can back-solve the start price
+  // such that after all daily moves the series ends at anchorPrice.
+  const mktMoves = [], geoMoves = [];
   for(let i=0;i<N;i++){
-    let geo=(Math.random()-0.52)*0.004;
-    let mkt=(Math.random()-0.48)*0.012;
-    // Known geo shock days (trading-day offsets back from today)
-    if(i===2)  geo=-0.252; // Q2 2026 earnings miss (Jul 14 2026)
-    if(i===55) geo=-0.132; // Anthropic COBOL blog (May 2025)
-    if(i===110) geo=-0.018;// DOGE cuts (Jan 2025)
-    if(i===175) geo=-0.026;// Tariffs (Mar 2025)
-    if(i===220) geo=-0.014;// Export controls (Jan 2024)
-    a=a*(1+mkt+geo); c=c*(1+mkt);
+    mktMoves.push((rand()-0.485)*0.011);
+    geoMoves.push((shockMap[i] ?? 0) + (rand()-0.515)*0.003);
+  }
+  // Compute what price index 0 must be so that the compounded product = anchorPrice
+  const totalActual  = mktMoves.reduce((p,m,i)=>p*(1+m+geoMoves[i]),1);
+  const totalCounter = mktMoves.reduce((p,m)=>p*(1+m),1);
+  const startActual  = anchorPrice / totalActual;
+  const startCounter = anchorPrice / totalCounter;
+
+  const actual=[], counter=[];
+  let a=startActual, c=startCounter;
+  for(let i=0;i<N;i++){
+    a = a*(1+mktMoves[i]+geoMoves[i]);
+    c = c*(1+mktMoves[i]);
     actual.push(a); counter.push(c);
   }
-  // Reverse so index 0 = oldest, N-1 = today
-  actual.reverse(); counter.reverse();
 
   const allV=[...actual,...counter];
   const minV=Math.min(...allV)*0.97, maxV=Math.max(...allV)*1.02;
@@ -1337,14 +1361,13 @@ function buildPriceChart(anchorPrice) {
   // Actual price line
   html+=`<path d="${actual.map((v,i)=>`${i===0?"M":"L"} ${sx(i)} ${sy(v)}`).join(" ")}" fill="none" stroke="#1a5ea8" stroke-width="2"/>`;
 
-  // Event markers — trading-day indices from left (oldest=0, today=251)
-  // Geo shocks mapped to approximate positions in the reversed 252-day series
+  // Event markers — forward indices matching GEO_SHOCKS above
   const events = [
-    { idx: N-3,   lbl:"Q2 '26 miss",  anchor:"end"   },  // Jul 14 2026
-    { idx: N-55,  lbl:"Anthropic '25", anchor:"start" },  // May 2025
-    { idx: N-110, lbl:"DOGE '25",      anchor:"start" },  // Jan 2025
-    { idx: N-175, lbl:"Tariffs '25",   anchor:"start" },  // Mar 2025
-    { idx: N-220, lbl:"Export ctrls '24", anchor:"start"},// Jan 2024
+    { idx: 4,   lbl:"Export ctrls '24", anchor:"start" },
+    { idx: 50,  lbl:"Tariffs '25",      anchor:"start" },
+    { idx: 100, lbl:"DOGE '25",         anchor:"start" },
+    { idx: 195, lbl:"Anthropic '25",    anchor:"start" },
+    { idx: 249, lbl:"Q2 '26 miss",      anchor:"end"   },
   ].filter(e => e.idx >= 0 && e.idx < N);
 
   events.forEach(({idx, lbl, anchor}) => {
@@ -1761,64 +1784,92 @@ function switchTab(id, btn) {
   btn.classList.add("active");
 }
 function refresh() { fetchAllData(); }
-function refreshNews() { fetchIbmNewsFeed(); fetchYahooNews(); fetchKyndrylNews(); }
+function refreshNews() { fetchIbmNewsFeed(); fetchYahooNews(); fetchPeerNews(); }
 
 // ═══════════════════════════════════════════════════════════════
-// KYNDRYL NEWS FEED (Yahoo Finance search — live, auto-refresh)
+// COMPETITOR & PEER NEWS FEED — all 7 peers, merged + sorted
 // ═══════════════════════════════════════════════════════════════
-async function fetchKyndrylNews() {
-  const newsUrls = [
-    "https://query1.finance.yahoo.com/v1/finance/search?q=Kyndryl+KD&newsCount=12&enableNavLinks=false&enableEnhancedTrivialQuery=true",
-    "https://query2.finance.yahoo.com/v1/finance/search?q=Kyndryl+KD&newsCount=12&enableNavLinks=false&enableEnhancedTrivialQuery=true",
-  ];
-  const el = document.getElementById("kyndrylNewsFeed");
+async function fetchPeerNews() {
+  const el = document.getElementById("peerNewsFeed");
   if (!el) return;
 
-  let news = [];
-  for (const url of newsUrls) {
-    try {
-      const raw = await fetchWithProxy(url, true);
-      const json = JSON.parse(raw);
-      const candidate = json?.finance?.result?.[0]?.news ?? json?.news ?? [];
-      if (candidate.length) { news = candidate; break; }
-    } catch (_) { /* try next */ }
-  }
+  // Fetch news for every peer ticker in parallel
+  const results = await Promise.allSettled(
+    PEERS.map(async p => {
+      const queries = [
+        `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(p.ticker)}&newsCount=8&enableNavLinks=false&enableEnhancedTrivialQuery=true`,
+        `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(p.ticker)}&newsCount=8&enableNavLinks=false&enableEnhancedTrivialQuery=true`,
+      ];
+      for (const url of queries) {
+        try {
+          const raw = await fetchWithProxy(url, true);
+          const json = JSON.parse(raw);
+          const items = json?.finance?.result?.[0]?.news ?? json?.news ?? [];
+          if (items.length) return { peer: p, items };
+        } catch (_) { /* try next */ }
+      }
+      return { peer: p, items: [] };
+    })
+  );
 
-  if (!news.length) {
+  // Flatten all items, tag each with its source peer, deduplicate by title+uuid
+  const seen = new Set();
+  const allItems = [];
+  results.forEach(r => {
+    if (r.status !== "fulfilled") return;
+    const { peer, items } = r.value;
+    items.forEach(item => {
+      const key = item.uuid || item.title || "";
+      if (seen.has(key)) return;
+      seen.add(key);
+      allItems.push({ item, peer });
+    });
+  });
+
+  if (!allItems.length) {
     el.innerHTML = `<div style="padding:10px 14px;background:#f7f8fa;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;color:#57606a">
-      Live feed unavailable — <a href="https://finance.yahoo.com/quote/KD/news/" target="_blank" rel="noopener" style="color:#3b82d4">View KD news on Yahoo Finance →</a>
+      Live feed unavailable — <a href="https://finance.yahoo.com/markets/" target="_blank" rel="noopener" style="color:#3b82d4">Visit Yahoo Finance →</a>
     </div>`;
-    updateNewsFetchedAt("kyndrylNewsFetchedAt", "kyndrylNews24hCount", 0);
+    updateNewsFetchedAt("peerNewsFetchedAt", "peerNews24hCount", 0);
     return;
   }
 
   // Sort newest-first
-  const enriched = news.map((item, rawIdx) => {
+  const enriched = allItems.map(({ item, peer }) => {
     const ts = item.providerPublishTime ?? null;
     const ageMs = ts ? Date.now() - ts * 1000 : Infinity;
-    return { item, ageMs, rawIdx };
-  }).sort((a, b) => a.ageMs - b.ageMs).slice(0, 10);
+    return { item, peer, ageMs };
+  }).sort((a, b) => a.ageMs - b.ageMs).slice(0, 20);
 
   const freshCount = enriched.filter(e => e.ageMs < 86400000).length;
 
-  el.innerHTML = enriched.map(({ item, ageMs }, idx) => {
-    const title     = item.title || "Kyndryl Update";
-    const link      = item.link  || item.url || "#";
+  el.innerHTML = enriched.map(({ item, peer, ageMs }, idx) => {
+    const title     = item.title || peer.name + " Update";
+    const link      = item.link || item.url || "#";
     const pubDate   = item.providerPublishTime
       ? new Date(item.providerPublishTime * 1000).toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" })
       : "";
     const publisher = item.publisher || "Yahoo Finance";
-    const { cat, typeLabel, ibmSignal, ibmSignalColor } = scoreKyndrylNewsItem(title, "");
+    const { sentiment, cat, typeLabel } = scoreNewsItem(title, "");
+    // IBM signal framed by peer correlation strength
+    const corrStr   = (peer.corr * 100).toFixed(0) + "% IBM corr";
+    const ibmSignal = sentiment > 1  ? `🟢 Positive signal — ${corrStr}`
+                    : sentiment < -1 ? `🔴 Negative signal — ${corrStr}`
+                    :                  `⚪ Monitor — ${corrStr}`;
+    const ibmColor  = sentiment > 1 ? "#1a7a3c" : sentiment < -1 ? "#b02020" : "#57606a";
     const { label: ageLabel, cls: ageCls } = newsAgeLabel(ageMs);
     const cardCls = newsCardClass(ageMs);
-    const detailId = "kdnews_" + idx;
+    const detailId = "pnews_" + idx;
     return `<div class="ibm-news-card ${cardCls}" onclick="toggleNewsCard('${detailId}')">
       <div class="nc-header">
-        <span class="nc-badge"><span class="event-category ${cat}">${typeLabel}</span></span>
+        <span class="nc-badge">
+          <span class="event-category ${cat}">${typeLabel}</span>
+          <span style="display:inline-block;background:#f0f0f0;color:#1f2328;font-size:11px;font-weight:700;padding:2px 7px;border-radius:3px;margin-left:4px">${peer.ticker}</span>
+        </span>
         <div style="flex:1;min-width:0">
           <div class="nc-title">${title}<span class="news-age-badge ${ageCls}">${ageLabel}</span></div>
-          <div class="nc-meta">${publisher} · ${pubDate}</div>
-          <div class="nc-impact" style="color:${ibmSignalColor}">${ibmSignal}</div>
+          <div class="nc-meta">${publisher} · ${pubDate} · <span style="color:#57606a">${peer.name}</span></div>
+          <div class="nc-impact" style="color:${ibmColor}">${ibmSignal}</div>
         </div>
       </div>
       <div class="nc-detail" id="${detailId}">
@@ -1827,7 +1878,7 @@ async function fetchKyndrylNews() {
     </div>`;
   }).join("");
 
-  updateNewsFetchedAt("kyndrylNewsFetchedAt", "kyndrylNews24hCount", freshCount);
+  updateNewsFetchedAt("peerNewsFetchedAt", "peerNews24hCount", freshCount);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1949,7 +2000,7 @@ buildRollingChart();
 buildPriceChart();
 fetchIbmNewsFeed();
 fetchYahooNews();
-fetchKyndrylNews();
+fetchPeerNews();
 updateTrCount();
 
 fetchAllData();
