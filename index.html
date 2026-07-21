@@ -244,10 +244,14 @@
   <!-- Global Time-Range Filter -->
   <div class="timerange-bar">
     <span class="tr-label">Time Range:</span>
-    <button class="tr-btn" onclick="setTimeRange(1,this)">1Y</button>
-    <button class="tr-btn" onclick="setTimeRange(2,this)">2Y</button>
-    <button class="tr-btn active" onclick="setTimeRange(3,this)">3Y</button>
-    <button class="tr-btn" onclick="setTimeRange(5,this)">5Y</button>
+    <button class="tr-btn" onclick="setTimeRange(1,this)">1D</button>
+    <button class="tr-btn" onclick="setTimeRange(7,this)">1W</button>
+    <button class="tr-btn" onclick="setTimeRange(30,this)">1M</button>
+    <button class="tr-btn" onclick="setTimeRange(91,this)">3M</button>
+    <button class="tr-btn" onclick="setTimeRange(365,this)">1Y</button>
+    <button class="tr-btn" onclick="setTimeRange(730,this)">2Y</button>
+    <button class="tr-btn active" onclick="setTimeRange(1096,this)">3Y</button>
+    <button class="tr-btn" onclick="setTimeRange(1826,this)">5Y</button>
     <button class="tr-btn" onclick="setTimeRange(0,this)">All</button>
     <span class="tr-count" id="trCount"></span>
   </div>
@@ -441,6 +445,25 @@
       <div class="note">IBM AR = IBM Abnormal Return (IBM return minus XLK-predicted return on the event day and following 2 trading days). Dollar impact uses IBM price at event date. Negative AR on a blog post = narrative risk priced in.</div>
     </div>
 
+    <!-- Kyndryl Live News Feed -->
+    <div class="section">
+      <div class="section-title">Kyndryl (KD) — Live News Feed</div>
+      <div class="news-feed-header">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span id="kyndrylNews24hCount" style="display:none" class="news-24h-count"></span>
+          <span style="font-size:12px;color:#57606a">Yahoo Finance · Kyndryl headlines · auto-refreshes every 5 min</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="nfh-meta"><span class="live-dot"></span><span id="kyndrylNewsFetchedAt">Fetching…</span></span>
+          <button class="news-refresh-btn" onclick="fetchKyndrylNews()">↻</button>
+        </div>
+      </div>
+      <div id="kyndrylNewsFeed" style="display:flex;flex-direction:column;gap:8px">
+        <div style="padding:12px;background:#f7f8fa;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;color:#57606a">Fetching Kyndryl headlines…</div>
+      </div>
+      <div class="note" style="margin-top:10px">🟢 Green border = published within 24 hours · 🟠 Orange border = 24–72 hours · Each headline is scored for its IBM read-through direction. Kyndryl is IBM's largest partner — earnings beats, margin expansion, and backlog growth are positive signals for IBM's software and Red Hat attach rates.</div>
+    </div>
+
   </div>
 
   <!-- Tab: Counterfactual Price Path -->
@@ -555,6 +578,7 @@ const PEERS = [
   { ticker:"SAP",   name:"SAP SE",       corr:0.42, earnMult:0.19, segment:"Enterprise Software" },
   { ticker:"GOOGL", name:"Alphabet",     corr:0.52, earnMult:0.18, segment:"Cloud / AI Platform" },
   { ticker:"AMZN",  name:"Amazon (AWS)", corr:0.49, earnMult:0.17, segment:"Cloud Infrastructure" },
+  { ticker:"KD",    name:"Kyndryl",      corr:0.44, earnMult:0.31, segment:"Managed Infrastructure Services" },
 ];
 
 // Market update event taxonomy — label, CSS class, IBM signal multiplier, narrative description
@@ -575,6 +599,30 @@ const EVENT_TYPES = {
 };
 
 const MARKET_EVENTS = [
+  { date:"2025-11-06", source:"Kyndryl",     event:"Q2 FY26 earnings — revenue $3.68B, margins expand; managed services backlog stable",
+    type:"earnings_beat",      sourcePctMove:6.2,  ibmAR: 1.4, ibmPrice:234.20,
+    detail:"Kyndryl's Q2 FY2026 results showed continued margin expansion under CEO Martin Schroeter's turnaround strategy. Revenue of $3.68B stabilised, with pre-tax income positive for the second consecutive quarter. The result was closely watched by IBM investors as a signal for enterprise IT infrastructure demand trends. Kyndryl and IBM retain significant commercial alliances — Kyndryl is IBM's largest partner — so Kyndryl's margin recovery reduced concern that managed infrastructure is structurally declining. IBM gained +1.4% abnormal return on the day." },
+  { date:"2025-08-07", source:"Kyndryl",     event:"Q1 FY26 — raises FY2026 adjusted pretax income guidance; partnership revenues with IBM grow 8%",
+    type:"guidance_raise",     sourcePctMove:9.1,  ibmAR: 1.2, ibmPrice:224.80,
+    detail:"Kyndryl raised its FY2026 adjusted pretax income guidance and reported 8% growth in partnership revenues sourced through IBM. As IBM's largest distribution partner for hybrid cloud infrastructure, Kyndryl's improved outlook is a positive read-through for IBM's software and Red Hat attach rates on managed services contracts." },
+  { date:"2025-02-06", source:"Kyndryl",     event:"Q3 FY25 — first GAAP pretax profit since IPO; revenue decline narrows to −3% YoY",
+    type:"earnings_beat",      sourcePctMove:18.4, ibmAR: 0.9, ibmPrice:246.20,
+    detail:"Kyndryl reported its first GAAP pre-tax profit since its November 2021 IBM spin-off. Revenue decline narrowed to −3% YoY — an inflection from −8% the prior year — driven by higher-value contract renewals and cost discipline. IBM shares moved up modestly as the result reduced overhang from the large spin-off relationship." },
+  { date:"2024-11-07", source:"Kyndryl",     event:"Q2 FY25 — revenue $3.73B beats; Kyndryl Bridge platform gaining enterprise traction",
+    type:"earnings_beat",      sourcePctMove:11.2, ibmAR: 0.6, ibmPrice:232.60,
+    detail:"Kyndryl's Kyndryl Bridge observability and automation platform showed accelerating enterprise adoption with 400+ production deployments. The platform is built on Red Hat OpenShift and integrates IBM watsonx for AIOps — a direct revenue and upsell opportunity for IBM's software segment." },
+  { date:"2024-05-30", source:"Kyndryl",     event:"Kyndryl + Microsoft expand partnership — Azure preferred cloud for Kyndryl managed services",
+    type:"partnership",        sourcePctMove:5.8,  ibmAR:-1.1, ibmPrice:180.60,
+    detail:"Kyndryl announced an expanded strategic partnership naming Microsoft Azure as its preferred hyperscaler for new managed cloud contracts. The deal was perceived as a slight negative for IBM hybrid cloud because Kyndryl, formerly IBM's infrastructure arm, is now directing new cloud workloads toward Azure rather than IBM Cloud or Red Hat OpenShift exclusively. IBM dipped −1.1% on an abnormal basis." },
+  { date:"2023-11-08", source:"Kyndryl",     event:"Q2 FY24 — Kyndryl raises FY2024 guidance; $19B backlog signals infrastructure demand floor",
+    type:"guidance_raise",     sourcePctMove:14.6, ibmAR: 1.8, ibmPrice:149.40,
+    detail:"Kyndryl raised its FY2024 adjusted EBITDA margin guidance and cited a $19B services backlog. IBM moved up in sympathy — the backlog stability signalled that large enterprise IT infrastructure spending has not declined as feared, supporting IBM's own consulting and software pipeline." },
+  { date:"2023-05-18", source:"Kyndryl",     event:"Q4 FY23 — revenue $4.3B; turnaround plan on track; Kyndryl Bridge in 250 enterprises",
+    type:"earnings_beat",      sourcePctMove:7.9,  ibmAR: 0.7, ibmPrice:132.40,
+    detail:"Kyndryl's turnaround accelerated in Q4 FY23 with Kyndryl Bridge — its hybrid cloud management platform — reaching 250 enterprise customers. IBM software (Red Hat, watsonx) is embedded in Kyndryl Bridge, creating a recurring revenue link between the two companies post-separation." },
+  { date:"2022-11-04", source:"Kyndryl",     event:"Q2 FY23 — Kyndryl warns on revenue: declines widen to −9% YoY; drags on IBM sentiment",
+    type:"earnings_miss",      sourcePctMove:-14.3,ibmAR:-1.6, ibmPrice:127.80,
+    detail:"Kyndryl's Q2 FY23 results missed expectations with revenue declining −9% YoY as legacy contract run-off accelerated faster than management forecast. The miss was a negative read-through for IBM because Kyndryl is IBM's largest enterprise partner and a proxy for broader IT infrastructure demand. IBM fell −1.6% on an abnormal basis." },
   { date:"2026-07-14", source:"IBM",          event:"Q2 2026 earnings miss — EPS $2.10 vs $2.58 est; revenue $15.6B vs $16.4B; guidance cut",
     type:"earnings_miss",      sourcePctMove:-25.2, ibmAR:-24.5, ibmPrice:217.07,
     detail:"IBM's Q2 2026 results were a broad miss. Revenue of $15.6B missed the $16.4B consensus by $800M (−4.9%). EPS of $2.10 missed $2.58 estimate by 18.6%. Consulting declined −8% YoY as GenAI bookings decelerated. IBM cut FY2026 revenue guidance to $61–62B (from $64–65B) and FCF guidance by $1.5B. Stock fell −25.2% on the day from $290.23 → $217.07 — IBM's second-largest single-day decline since the Anthropic COBOL blog post (May 2025). The magnitude of the sell-off suggests the market is repricing IBM's GenAI consulting growth narrative, not just adjusting for a one-quarter shortfall." },
@@ -1118,7 +1166,7 @@ function renderCorrTable(d) {
 // EVENT LOG
 // ═══════════════════════════════════════════════════════════════
 function renderEventTable() {
-  const cutoff = window.activeTimeRange ? new Date(Date.now() - window.activeTimeRange * 365.25 * 86400000) : null;
+  const cutoff = window.activeTimeRange ? new Date(Date.now() - window.activeTimeRange * 86400000) : null;
   const rows = EVENTS.filter(e => !cutoff || new Date(e.date) >= cutoff);
   document.getElementById("eventTableBody").innerHTML = rows.map(e => {
     const pill = Math.abs(e.car)>=3 ? (e.car<0?"car-neg":"car-pos") : "car-neutral";
@@ -1369,7 +1417,7 @@ function renderPeerCorrTable(d) {
 // ═══════════════════════════════════════════════════════════════
 function buildPeerEventTable() {
   const ibmP = liveData?.ibmPrice ?? 195.20;
-  const cutoff = window.activeTimeRange ? new Date(Date.now() - window.activeTimeRange * 365.25 * 86400000) : null;
+  const cutoff = window.activeTimeRange ? new Date(Date.now() - window.activeTimeRange * 86400000) : null;
   const events = MARKET_EVENTS.filter(e => !cutoff || new Date(e.date) >= cutoff);
   document.getElementById("peerEventTableBody").innerHTML = events.map(e => {
     const evType    = EVENT_TYPES[e.type] ?? { label: e.type, cls:"cat-macro" };
@@ -1425,7 +1473,7 @@ function renderIbmSummary(d) {
 // IBM EARNINGS TABLE
 // ═══════════════════════════════════════════════════════════════
 function buildIbmEarningsTable() {
-  const cutoff = window.activeTimeRange ? new Date(Date.now() - window.activeTimeRange * 365.25 * 86400000) : null;
+  const cutoff = window.activeTimeRange ? new Date(Date.now() - window.activeTimeRange * 86400000) : null;
   const rows = IBM_EARNINGS.filter(e => !cutoff || new Date(e.date) >= cutoff);
   document.getElementById("ibmEarningsTableBody").innerHTML = rows.map(e => {
     const revBeat   = e.rev - e.revCons;
@@ -1458,7 +1506,7 @@ function buildIbmEarningsTable() {
 // IBM STRATEGIC EVENTS TABLE
 // ═══════════════════════════════════════════════════════════════
 function buildIbmEventsTable(filter) {
-  const cutoff = window.activeTimeRange ? new Date(Date.now() - window.activeTimeRange * 365.25 * 86400000) : null;
+  const cutoff = window.activeTimeRange ? new Date(Date.now() - window.activeTimeRange * 86400000) : null;
   const typeFiltered = filter === 'all' ? IBM_EVENTS : IBM_EVENTS.filter(e => e.type === filter);
   const filtered = cutoff ? typeFiltered.filter(e => new Date(e.date) >= cutoff) : typeFiltered;
   const ibmP = liveData?.ibmPrice ?? 195.20;
@@ -1499,6 +1547,15 @@ const IBM_NEWS_KEYWORDS = {
   newsletter: ["ibv","institute for business value","think","ceo survey","report","study"],
 };
 
+// Kyndryl-specific keyword scoring (mapped onto the same IBM impact direction)
+const KYNDRYL_NEWS_KEYWORDS = {
+  pos: ["beat","growth","profit","margin","raises","guidance","wins","awarded","backlog","expands","milestone","partner","recovery","turnaround"],
+  neg: ["misses","cut","decline","warn","loss","restructuring","layoff","concern","weak","headwind","exits","writedown"],
+  product: ["kyndryl bridge","aiops","openshift","managed services","infrastructure","cloud migration","automation","observability"],
+  earnings: ["quarterly results","q1","q2","q3","q4","fiscal","earnings","revenue","ebitda","guidance","pretax"],
+  ma: ["acquires","acquisition","merger","divests","partner"],
+};
+
 function scoreNewsItem(title, summary) {
   const text = (title + " " + summary).toLowerCase();
   let sentiment = 0;
@@ -1510,6 +1567,23 @@ function scoreNewsItem(title, summary) {
   else if (IBM_NEWS_KEYWORDS.newsletter.some(kw => text.includes(kw))) { cat = "cat-ibm-newsletter"; typeLabel = "Research"; }
   else if (IBM_NEWS_KEYWORDS.product.some(kw => text.includes(kw))){ cat = "cat-ibm-product";    typeLabel = "Product/AI"; }
   return { sentiment, cat, typeLabel };
+}
+
+function scoreKyndrylNewsItem(title, summary) {
+  const text = (title + " " + summary).toLowerCase();
+  let sentiment = 0;
+  KYNDRYL_NEWS_KEYWORDS.pos.forEach(kw => { if (text.includes(kw)) sentiment += 1; });
+  KYNDRYL_NEWS_KEYWORDS.neg.forEach(kw => { if (text.includes(kw)) sentiment -= 1; });
+  let cat = "cat-ibm-news", typeLabel = "KD News";
+  if (KYNDRYL_NEWS_KEYWORDS.earnings.some(kw => text.includes(kw)))    { cat = "cat-ibm-earnings";   typeLabel = "KD Earnings"; }
+  else if (KYNDRYL_NEWS_KEYWORDS.ma.some(kw => text.includes(kw)))     { cat = "cat-ibm-ma";         typeLabel = "KD M&A"; }
+  else if (KYNDRYL_NEWS_KEYWORDS.product.some(kw => text.includes(kw))){ cat = "cat-ibm-product";    typeLabel = "KD Platform"; }
+  // Positive result = read-through IBM tailwind; negative = IBM headwind
+  const ibmSignal = sentiment > 1 ? "🟢 Positive read-through for IBM"
+                  : sentiment < -1 ? "🔴 Negative read-through for IBM"
+                  : "⚪ Neutral — monitor for IBM spillover";
+  const ibmSignalColor = sentiment > 1 ? "#1a7a3c" : sentiment < -1 ? "#b02020" : "#57606a";
+  return { sentiment, cat, typeLabel, ibmSignal, ibmSignalColor };
 }
 
 // Helper: extract text from an RSS element, handling CDATA and entity-encoded wrappers
@@ -1663,15 +1737,83 @@ function switchTab(id, btn) {
   btn.classList.add("active");
 }
 function refresh() { fetchAllData(); }
-function refreshNews() { fetchIbmNewsFeed(); fetchYahooNews(); }
+function refreshNews() { fetchIbmNewsFeed(); fetchYahooNews(); fetchKyndrylNews(); }
+
+// ═══════════════════════════════════════════════════════════════
+// KYNDRYL NEWS FEED (Yahoo Finance search — live, auto-refresh)
+// ═══════════════════════════════════════════════════════════════
+async function fetchKyndrylNews() {
+  const newsUrls = [
+    "https://query1.finance.yahoo.com/v1/finance/search?q=Kyndryl+KD&newsCount=12&enableNavLinks=false&enableEnhancedTrivialQuery=true",
+    "https://query2.finance.yahoo.com/v1/finance/search?q=Kyndryl+KD&newsCount=12&enableNavLinks=false&enableEnhancedTrivialQuery=true",
+  ];
+  const el = document.getElementById("kyndrylNewsFeed");
+  if (!el) return;
+
+  let news = [];
+  for (const url of newsUrls) {
+    try {
+      const raw = await fetchWithProxy(url, true);
+      const json = JSON.parse(raw);
+      const candidate = json?.finance?.result?.[0]?.news ?? json?.news ?? [];
+      if (candidate.length) { news = candidate; break; }
+    } catch (_) { /* try next */ }
+  }
+
+  if (!news.length) {
+    el.innerHTML = `<div style="padding:10px;background:#f7f8fa;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;color:#57606a">
+      Kyndryl live news could not be fetched — Cloudflare protection on Yahoo's API often blocks CORS proxies.
+      <a href="https://finance.yahoo.com/quote/KD/news/" target="_blank" rel="noopener" style="color:#3b82d4;margin-left:4px">View KD news on Yahoo Finance →</a>
+    </div>`;
+    updateNewsFetchedAt("kyndrylNewsFetchedAt", "kyndrylNews24hCount", 0);
+    return;
+  }
+
+  // Sort newest-first
+  const enriched = news.map((item, rawIdx) => {
+    const ts = item.providerPublishTime ?? null;
+    const ageMs = ts ? Date.now() - ts * 1000 : Infinity;
+    return { item, ageMs, rawIdx };
+  }).sort((a, b) => a.ageMs - b.ageMs).slice(0, 10);
+
+  const freshCount = enriched.filter(e => e.ageMs < 86400000).length;
+
+  el.innerHTML = enriched.map(({ item, ageMs }, idx) => {
+    const title     = item.title || "Kyndryl Update";
+    const link      = item.link  || item.url || "#";
+    const pubDate   = item.providerPublishTime
+      ? new Date(item.providerPublishTime * 1000).toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" })
+      : "";
+    const publisher = item.publisher || "Yahoo Finance";
+    const { cat, typeLabel, ibmSignal, ibmSignalColor } = scoreKyndrylNewsItem(title, "");
+    const { label: ageLabel, cls: ageCls } = newsAgeLabel(ageMs);
+    const cardCls = newsCardClass(ageMs);
+    const detailId = "kdnews_" + idx;
+    return `<div class="ibm-news-card ${cardCls}" onclick="toggleNewsCard('${detailId}')">
+      <div class="nc-header">
+        <span class="nc-badge"><span class="event-category ${cat}">${typeLabel}</span></span>
+        <div style="flex:1;min-width:0">
+          <div class="nc-title">${title}<span class="news-age-badge ${ageCls}">${ageLabel}</span></div>
+          <div class="nc-meta">${publisher} · ${pubDate}</div>
+          <div class="nc-impact" style="color:${ibmSignalColor}">${ibmSignal}</div>
+        </div>
+      </div>
+      <div class="nc-detail" id="${detailId}">
+        <a href="${link}" style="color:#3b82d4;font-size:12px;margin-top:4px;display:inline-block" target="_blank" rel="noopener">Read full article →</a>
+      </div>
+    </div>`;
+  }).join("");
+
+  updateNewsFetchedAt("kyndrylNewsFetchedAt", "kyndrylNews24hCount", freshCount);
+}
 
 // ═══════════════════════════════════════════════════════════════
 // TIME-RANGE FILTER
 // ═══════════════════════════════════════════════════════════════
-window.activeTimeRange = 3; // default: 3 years
+window.activeTimeRange = 1096; // default: 3 years (in days)
 
-function setTimeRange(years, btn) {
-  window.activeTimeRange = years;
+function setTimeRange(days, btn) {
+  window.activeTimeRange = days;
   document.querySelectorAll(".tr-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
 
@@ -1690,7 +1832,7 @@ function setTimeRange(years, btn) {
 
 function updateTrCount() {
   const cutoff = window.activeTimeRange
-    ? new Date(Date.now() - window.activeTimeRange * 365.25 * 86400000)
+    ? new Date(Date.now() - window.activeTimeRange * 86400000)
     : null;
   const total =
     (cutoff ? IBM_EARNINGS.filter(e => new Date(e.date) >= cutoff) : IBM_EARNINGS).length +
@@ -1785,6 +1927,7 @@ buildRollingChart();
 buildPriceChart();
 fetchIbmNewsFeed();
 fetchYahooNews();
+fetchKyndrylNews();
 updateTrCount();
 
 fetchAllData();
