@@ -1698,9 +1698,8 @@ async function fetchIbmNewsFeed() {
   }
 
   if (!items.length) {
-    feedEl.innerHTML = `<div style="padding:12px;background:#fff2f2;border:1px solid #f0a0a0;border-radius:6px;font-size:13px;color:#b02020">
-      Could not fetch IBM news feed${lastErr ? " (" + lastErr + ")" : ""}. All CORS proxies returned empty content for IBM Newsroom RSS.
-      <a href="https://newsroom.ibm.com" target="_blank" rel="noopener" style="color:#3b82d4;margin-left:6px">Visit IBM Newsroom →</a>
+    feedEl.innerHTML = `<div style="padding:10px 14px;background:#f7f8fa;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;color:#57606a">
+      Live feed unavailable — <a href="https://newsroom.ibm.com" target="_blank" rel="noopener" style="color:#3b82d4">Visit IBM Newsroom →</a>
     </div>`;
     updateNewsFetchedAt("ibmNewsFetchedAt", "ibmNews24hCount", 0);
     return;
@@ -1786,9 +1785,8 @@ async function fetchKyndrylNews() {
   }
 
   if (!news.length) {
-    el.innerHTML = `<div style="padding:10px;background:#f7f8fa;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;color:#57606a">
-      Kyndryl live news could not be fetched — Cloudflare protection on Yahoo's API often blocks CORS proxies.
-      <a href="https://finance.yahoo.com/quote/KD/news/" target="_blank" rel="noopener" style="color:#3b82d4;margin-left:4px">View KD news on Yahoo Finance →</a>
+    el.innerHTML = `<div style="padding:10px 14px;background:#f7f8fa;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;color:#57606a">
+      Live feed unavailable — <a href="https://finance.yahoo.com/quote/KD/news/" target="_blank" rel="noopener" style="color:#3b82d4">View KD news on Yahoo Finance →</a>
     </div>`;
     updateNewsFetchedAt("kyndrylNewsFetchedAt", "kyndrylNews24hCount", 0);
     return;
@@ -1890,9 +1888,8 @@ async function fetchYahooNews() {
   }
 
   if (!news.length) {
-    el.innerHTML = `<div style="padding:10px;background:#f7f8fa;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;color:#57606a">
-      Yahoo Finance news could not be fetched — Cloudflare protection on Yahoo's API often blocks CORS proxies.
-      <a href="https://finance.yahoo.com/quote/IBM/news/" target="_blank" rel="noopener" style="color:#3b82d4;margin-left:4px">View IBM news on Yahoo Finance →</a>
+    el.innerHTML = `<div style="padding:10px 14px;background:#f7f8fa;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;color:#57606a">
+      Live feed unavailable — <a href="https://finance.yahoo.com/quote/IBM/news/" target="_blank" rel="noopener" style="color:#3b82d4">View IBM news on Yahoo Finance →</a>
     </div>`;
     updateNewsFetchedAt("yahooNewsFetchedAt", "yahooNews24hCount", 0);
     return;
