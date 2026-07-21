@@ -470,20 +470,31 @@
   <div class="tab-panel" id="tab-price">
     <div class="section">
       <div class="section-title">IBM Actual vs. Geopolitical Counterfactual Price Path (1 Year — Simulated)</div>
-      <p style="font-size:12px;color:#57606a;margin-bottom:10px">
-        <strong style="color:#1a5ea8">Blue line</strong> = IBM actual price.
-        <strong style="color:#3aa75b">Green dashed</strong> = counterfactual (no geo drag).
-        <strong style="color:#d94f4f">Red area</strong> = cumulative geopolitical discount.
-      </p>
+
+      <!-- What this chart shows -->
+      <div class="scenario-box" style="margin-bottom:16px">
+        <h4 style="margin-bottom:6px">What this chart shows</h4>
+        <p style="font-size:13px;color:#1f2328;line-height:1.7;margin-bottom:8px">
+          Both lines start from the same estimated price one year ago. From that shared starting point they diverge based on one question:
+          <em>"What would IBM's stock price be today if geopolitical events had never happened?"</em>
+        </p>
+        <ul style="font-size:13px;color:#57606a;line-height:1.9;padding-left:18px;margin-bottom:4px">
+          <li><strong style="color:#1a5ea8">Blue line (Actual)</strong> — IBM's estimated price path including all market moves <em>and</em> the geopolitical shocks identified by the OLS model (COBOL narrative, DOGE cuts, tariffs, earnings misses, etc.).</li>
+          <li><strong style="color:#3aa75b">Green dashed (Counterfactual)</strong> — The price IBM <em>would have reached</em> if only broad market moves applied and every geo shock was zero. Because all identified geo events are net-negative for IBM, this line sits <em>above</em> the actual line — representing the "geo-free" premium IBM is not currently receiving.</li>
+          <li><strong style="color:#d94f4f">Red shaded area</strong> — The gap between the two lines at any point in time. This is the cumulative dollar cost of geopolitical drag on IBM's share price.</li>
+        </ul>
+        <p style="font-size:12px;color:#57606a">Red event markers (●) show the exact trading days when major geo shocks were applied. The series is simulated using the OLS model betas — it is directionally accurate but not a replay of historical prices.</p>
+      </div>
+
       <div class="chart-wrap" style="padding:12px 8px">
         <svg id="priceChart" viewBox="0 0 720 220" style="width:100%;height:auto"></svg>
         <div class="legend-row" style="padding:0 8px;margin-top:10px">
-          <div class="legend-item"><div class="leg-line" style="background:#1a5ea8"></div>IBM Actual</div>
-          <div class="legend-item"><div class="leg-line" style="background:#3aa75b"></div>Counterfactual</div>
-          <div class="legend-item"><div class="leg-line" style="background:#d94f4f;opacity:0.4;height:10px;border-radius:2px"></div>Geo Discount</div>
+          <div class="legend-item"><div class="leg-line" style="background:#1a5ea8"></div>IBM Actual (with geo drag)</div>
+          <div class="legend-item"><div class="leg-line" style="background:#3aa75b;border-top:2px dashed #3aa75b"></div>Counterfactual (geo-free)</div>
+          <div class="legend-item"><div class="leg-line" style="background:#d94f4f;opacity:0.4;height:10px;border-radius:2px"></div>Geo Discount Gap</div>
         </div>
       </div>
-      <div class="note">Simulated 252-day series anchored to the live IBM price. Live historical OHLC is a future enhancement requiring a paid data source.</div>
+      <div class="note">Simulated 252-day series. Both lines share the same start price one year ago — the gap that opens between them is entirely due to geo shocks. Anchored to today's live IBM price.</div>
     </div>
     <div class="section">
       <div class="section-title">Cumulative Geopolitical Price Impact — Key Periods</div>
@@ -1259,75 +1270,77 @@ function buildPriceChart(anchorPrice) {
   const W=720,H=220,pL=50,pR=20,pT=16,pB=34;
   const N=252; // ~1 trading year
 
-  // ── Build series FORWARD from (today − 1 year) → today ──
-  // Geo shocks are injected at the correct forward index so the
-  // endpoint always lands on anchorPrice and prices stay realistic.
+  // ── Helper: convert a real calendar date to a trading-day index (0=oldest, N-1=today) ──
+  const today = new Date();
+  const calDays = N * (365/252);  // calendar days spanned by 252 trading days
+  const startDate = new Date(today.getTime() - calDays * 86400000);
+  const dateToIdx = iso => {
+    const d = new Date(iso);
+    if (d < startDate || d > today) return null; // outside the 1-year window
+    const calOff = (d - startDate) / 86400000;
+    return Math.min(N-1, Math.max(0, Math.round(calOff * (252/365))));
+  };
 
-  // Known geo events as { idx: trading-day index from start (0=oldest), geoPct }
-  // These match the MARKET_EVENTS/IBM_EVENTS entries visible in other tables.
-  // idx 0 = ~1 year ago today, idx 251 = today
-  const GEO_SHOCKS = [
-    { idx: 4,   geo:-0.014 }, // Export controls Jan 2024
-    { idx: 50,  geo:-0.018 }, // Tariffs Mar 2025 (approx calendar position)
-    { idx: 100, geo:-0.026 }, // DOGE cuts Jan 2025
-    { idx: 195, geo:-0.132 }, // Anthropic COBOL blog May 2025
-    { idx: 249, geo:-0.252 }, // Q2 2026 earnings miss Jul 14 2026
+  // ── Geo shocks — keyed by real event dates, only those within the 1-year window ──
+  // geoPct = the IBM abnormal return on that day attributable to geo factors
+  const RAW_SHOCKS = [
+    { date:"2025-01-20", geo:-0.051, lbl:"DOGE cuts"       },  // DOGE federal IT cuts
+    { date:"2025-02-18", geo:-0.048, lbl:"GS downgrade"    },  // Goldman downgrade
+    { date:"2025-03-04", geo:-0.026, lbl:"Tariffs"         },  // US 25% tariffs
+    { date:"2025-05-20", geo:-0.132, lbl:"Anthropic '25"   },  // Anthropic COBOL blog
+    { date:"2026-07-14", geo:-0.252, lbl:"Q2 '26 miss"     },  // Q2 2026 earnings miss
   ];
+  // Filter to events inside this 1-year window and compute their trading-day index
+  const GEO_SHOCKS = RAW_SHOCKS
+    .map(s => ({ ...s, idx: dateToIdx(s.date) }))
+    .filter(s => s.idx !== null);
   const shockMap = {};
-  GEO_SHOCKS.forEach(s => { shockMap[s.idx] = s.geo; });
+  GEO_SHOCKS.forEach(s => { shockMap[s.idx] = (shockMap[s.idx] ?? 0) + s.geo; });
 
-  // Use a seeded-style deterministic random so the chart is stable across re-renders
+  // ── Deterministic seeded PRNG — chart is stable across re-renders ──
   let seed = 42;
   const rand = () => { seed = (seed * 1664525 + 1013904223) & 0xffffffff; return (seed >>> 0) / 0xffffffff; };
 
-  // First pass: accumulate total geo impact so we can back-solve the start price
-  // such that after all daily moves the series ends at anchorPrice.
+  // ── Build daily market + geo move arrays ──
   const mktMoves = [], geoMoves = [];
   for(let i=0;i<N;i++){
     mktMoves.push((rand()-0.485)*0.011);
-    geoMoves.push((shockMap[i] ?? 0) + (rand()-0.515)*0.003);
+    // Small daily geo noise; large shocks injected from shockMap
+    geoMoves.push((shockMap[i] ?? 0) + (rand()-0.515)*0.002);
   }
-  // Compute what price index 0 must be so that the compounded product = anchorPrice
-  const totalActual  = mktMoves.reduce((p,m,i)=>p*(1+m+geoMoves[i]),1);
-  const totalCounter = mktMoves.reduce((p,m)=>p*(1+m),1);
-  const startActual  = anchorPrice / totalActual;
-  const startCounter = anchorPrice / totalCounter;
+
+  // ── Solve for a shared start price so the ACTUAL line ends at anchorPrice today ──
+  // Both lines start at the same price (same world, 1 year ago).
+  // actual  applies mkt + geo;  counter applies mkt only.
+  // Since cumulative geo is negative, counter > actual throughout → green above blue ✓
+  const totalActual = mktMoves.reduce((p,m,i) => p*(1+m+geoMoves[i]), 1);
+  const startPrice  = anchorPrice / totalActual;
 
   const actual=[], counter=[];
-  let a=startActual, c=startCounter;
+  let a=startPrice, c=startPrice;
   for(let i=0;i<N;i++){
     a = a*(1+mktMoves[i]+geoMoves[i]);
     c = c*(1+mktMoves[i]);
     actual.push(a); counter.push(c);
   }
+  // actual[N-1] === anchorPrice (today)
+  // counter[N-1] > anchorPrice (geo-free world, always higher given negative shocks)
 
   const allV=[...actual,...counter];
   const minV=Math.min(...allV)*0.97, maxV=Math.max(...allV)*1.02;
   const sx=i=>pL+(i/(N-1))*(W-pL-pR);
   const sy=v=>pT+(H-pT-pB)*(1-(v-minV)/(maxV-minV));
 
-  // ── X-axis: compute real month+year labels from today ──
-  const today = new Date();
+  // ── X-axis month/year labels ──
   const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  // Build one label per calendar month that falls within the 252-day window
-  // Each trading day ≈ 1.4 calendar days
-  const calDays = N * (365/252);
-  const startDate = new Date(today.getTime() - calDays * 86400000);
-
-  // Collect month boundaries: find each month that has its 1st within the window
   const xLabels = [];
   let cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
   if(cursor < startDate) cursor = new Date(cursor.getFullYear(), cursor.getMonth()+1, 1);
   while(cursor <= today) {
-    // Convert calendar date → trading-day index
-    const calOffset = (cursor - startDate) / 86400000;       // calendar days from start
-    const tradingIdx = Math.round(calOffset * (252/365));     // map to trading-day index
-    const clampedIdx = Math.max(0, Math.min(N-1, tradingIdx));
-    const yr = cursor.getFullYear();
-    const mo = MONTHS[cursor.getMonth()];
-    // Show year on Jan, and on the very first label
-    const showYear = cursor.getMonth() === 0 || xLabels.length === 0;
-    xLabels.push({ idx: clampedIdx, label: showYear ? `${mo} '${String(yr).slice(2)}` : mo });
+    const calOff = (cursor - startDate) / 86400000;
+    const idx = Math.min(N-1, Math.max(0, Math.round(calOff*(252/365))));
+    const showYear = cursor.getMonth()===0 || xLabels.length===0;
+    xLabels.push({ idx, label: showYear ? `${MONTHS[cursor.getMonth()]} '${String(cursor.getFullYear()).slice(2)}` : MONTHS[cursor.getMonth()] });
     cursor = new Date(cursor.getFullYear(), cursor.getMonth()+1, 1);
   }
 
@@ -1341,7 +1354,7 @@ function buildPriceChart(anchorPrice) {
     html+=`<text x="${pL-4}" y="${y+4}" text-anchor="end" font-size="9" fill="#bcc1ca">$${Math.round(v)}</text>`;
   }
 
-  // X-axis year separator lines + month labels
+  // X-axis labels + year separator lines
   xLabels.forEach(({idx, label}) => {
     const x = sx(idx);
     const isYear = label.includes("'");
@@ -1349,31 +1362,24 @@ function buildPriceChart(anchorPrice) {
     html+=`<text x="${x}" y="${H-pB+13}" text-anchor="middle" font-size="${isYear?9:8}" font-weight="${isYear?"700":"400"}" fill="${isYear?"#57606a":"#bcc1ca"}">${label}</text>`;
   });
 
-  // Shaded geo-discount area
+  // Shaded geo-discount area (between counterfactual above and actual below)
   let area=`M ${sx(0)} ${sy(counter[0])}`;
   for(let i=1;i<N;i++) area+=` L ${sx(i)} ${sy(counter[i])}`;
   for(let i=N-1;i>=0;i--) area+=` L ${sx(i)} ${sy(actual[i])}`;
   html+=`<path d="${area}Z" fill="#d94f4f" opacity="0.11"/>`;
 
-  // Counterfactual line
+  // Counterfactual (geo-free) — green dashed, sits ABOVE actual
   html+=`<path d="${counter.map((v,i)=>`${i===0?"M":"L"} ${sx(i)} ${sy(v)}`).join(" ")}" fill="none" stroke="#3aa75b" stroke-width="1.8" stroke-dasharray="6,4" opacity="0.85"/>`;
 
-  // Actual price line
+  // Actual price — blue solid, sits BELOW counterfactual
   html+=`<path d="${actual.map((v,i)=>`${i===0?"M":"L"} ${sx(i)} ${sy(v)}`).join(" ")}" fill="none" stroke="#1a5ea8" stroke-width="2"/>`;
 
-  // Event markers — forward indices matching GEO_SHOCKS above
-  const events = [
-    { idx: 4,   lbl:"Export ctrls '24", anchor:"start" },
-    { idx: 50,  lbl:"Tariffs '25",      anchor:"start" },
-    { idx: 100, lbl:"DOGE '25",         anchor:"start" },
-    { idx: 195, lbl:"Anthropic '25",    anchor:"start" },
-    { idx: 249, lbl:"Q2 '26 miss",      anchor:"end"   },
-  ].filter(e => e.idx >= 0 && e.idx < N);
-
-  events.forEach(({idx, lbl, anchor}) => {
+  // Event markers at their real calendar positions
+  GEO_SHOCKS.forEach(({idx, lbl}) => {
     const cx=sx(idx), cy=sy(actual[idx]);
+    const anchor = idx > N*0.8 ? "end" : "start";
     html+=`<circle cx="${cx}" cy="${cy}" r="4" fill="#d94f4f" opacity="0.9"/>`;
-    html+=`<text x="${cx}" y="${cy-9}" text-anchor="${anchor}" font-size="8" fill="#b02020" font-weight="600">${lbl}</text>`;
+    html+=`<text x="${cx+(anchor==="end"?-6:6)}" y="${cy-8}" text-anchor="${anchor}" font-size="8" fill="#b02020" font-weight="600">${lbl}</text>`;
   });
 
   svg.innerHTML=html;
