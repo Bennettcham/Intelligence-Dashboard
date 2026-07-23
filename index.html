@@ -634,9 +634,9 @@ const MARKET_EVENTS = [
   { date:"2022-11-04", source:"Kyndryl",     event:"Q2 FY23 — Kyndryl warns on revenue: declines widen to −9% YoY; drags on IBM sentiment",
     type:"earnings_miss",      sourcePctMove:-14.3,ibmAR:-1.6, ibmPrice:127.80,
     detail:"Kyndryl's Q2 FY23 results missed expectations with revenue declining −9% YoY as legacy contract run-off accelerated faster than management forecast. The miss was a negative read-through for IBM because Kyndryl is IBM's largest enterprise partner and a proxy for broader IT infrastructure demand. IBM fell −1.6% on an abnormal basis." },
-  { date:"2026-07-14", source:"IBM",          event:"Q2 2026 earnings miss — EPS $2.10 vs $2.58 est; revenue $15.6B vs $16.4B; guidance cut",
-    type:"earnings_miss",      sourcePctMove:-25.2, ibmAR:-24.5, ibmPrice:217.07,
-    detail:"IBM's Q2 2026 results were a broad miss. Revenue of $15.6B missed the $16.4B consensus by $800M (−4.9%). EPS of $2.10 missed $2.58 estimate by 18.6%. Consulting declined −8% YoY as GenAI bookings decelerated. IBM cut FY2026 revenue guidance to $61–62B (from $64–65B) and FCF guidance by $1.5B. Stock fell −25.2% on the day from $290.23 → $217.07 — IBM's second-largest single-day decline since the Anthropic COBOL blog post (May 2025). The magnitude of the sell-off suggests the market is repricing IBM's GenAI consulting growth narrative, not just adjusting for a one-quarter shortfall." },
+  { date:"2026-07-22", source:"IBM",          event:"Q2 2026 earnings — Non-GAAP EPS $2.93 beats; revenue $17.2B slight miss; IBM Z −42%; guidance maintained",
+    type:"earnings_miss",      sourcePctMove:-2.3,  ibmAR:-2.3,  ibmPrice:205.77,
+    detail:"IBM reported Q2 2026 revenue of $17.162B vs. consensus ~$17.4B — a slight miss driven by IBM Z mainframe down −42% YoY as the z16 cycle matures ahead of the z17 ramp. Non-GAAP EPS of $2.93 beat the $2.85 estimate. Software +5% YoY (Red Hat Hybrid Cloud +11%, Data +19%). Consulting flat at $5.33B (+1% constant currency). Distributed Infrastructure surged +37% with Power and Storage at record pace, building a ~$500M order backlog. IBM updated full-year CC revenue growth guidance to 4–5% (prior: mid-single digits) and reiterated FCF growth of ~$1B YoY. IBM stock fell −2.3% on July 22 (close $205.77 vs prior close $210.50). New initiatives: Lightwell open-source security product (7,500+ patches in 2 weeks); $10B+ quantum investment over 5 years; Anderon quantum wafer foundry announced with US Dept of Commerce." },
   { date:"2025-05-20", source:"Anthropic",    event:"Blog post: Claude can power COBOL modernisation at scale",
     type:"narrative_threat",   sourcePctMove:null, ibmAR:-13.2, ibmPrice:229.60,
     detail:"Anthropic's technical blog detailed how Claude handles COBOL-to-modern-stack conversion. Market read this as an existential threat to IBM's System Z mainframe renewal business and $20B+ GBS consulting franchise. IBM's worst single-day slide in 25 years." },
@@ -689,7 +689,7 @@ let peerLiveData = [];
 // ── IBM OWN DATA ────────────────────────────────────────────────
 // IBM Earnings — last 12 quarters (2023–2026)
 const IBM_EARNINGS = [
-  { q:"Q2 2026", date:"2026-07-14", rev:15.60, revCons:16.40, eps:2.10, epsCons:2.58, ibmAR:-24.5, ibmPrice:217.07, theme:"Revenue miss on consulting; GenAI bookings growth decelerated; guidance cut for FY2026" },
+  { q:"Q2 2026", date:"2026-07-22", rev:17.16, revCons:17.40, eps:2.93, epsCons:2.85, ibmAR:-2.3,  ibmPrice:205.77, theme:"Software +5%, Consulting flat, IBM Z −42%; guidance: CC rev growth 4–5%, FCF +~$1B YoY; revenue headwinds late in quarter" },
   { q:"Q1 2026", date:"2026-04-22", rev:15.12, revCons:14.98, eps:1.88, epsCons:1.71, ibmAR:+3.4,  ibmPrice:248.60, theme:"watsonx ARR $3B run-rate; AI agents in 400+ enterprises; consulting recovery" },
   { q:"Q4 2025", date:"2026-01-28", rev:18.20, revCons:18.05, eps:4.21, epsCons:4.04, ibmAR:+2.1,  ibmPrice:241.80, theme:"FY2025 FCF $13.8B beat; software segment +11% YoY; dividend raised" },
   { q:"Q3 2025", date:"2025-10-22", rev:15.44, revCons:15.38, eps:2.58, epsCons:2.44, ibmAR:+1.6,  ibmPrice:238.20, theme:"watsonx Orchestrate agent platform scaling; mainframe z17 demand solid" },
@@ -705,10 +705,10 @@ const IBM_EARNINGS = [
 
 // IBM Own Strategic Events — press releases, launches, M&A, newsletters (2021–2026)
 const IBM_EVENTS = [
-  { date:"2026-07-14", type:"earnings",    cat:"cat-ibm-earnings",
-    title:"Q2 2026 — EPS $2.10 misses $2.58 consensus; revenue $15.6B vs $16.4B est; stock −25%",
-    detail:"IBM's Q2 2026 results were a significant miss across the board. Revenue of $15.6B came in $800M below the $16.4B consensus. EPS of $2.10 missed the $2.58 estimate by 19%. IBM's Consulting segment declined −8% YoY as GenAI bookings growth decelerated sharply following the COBOL-modernisation narrative threat. Management cut FY2026 revenue guidance from $64–65B to $61–62B and reduced FCF guidance by $1.5B. IBM fell −25.2% on the day — from $290.23 to $217.07 — its second-largest single-day decline since the Anthropic blog post of May 2025. The sell-off reflected both the miss and downward revision to GenAI adoption timelines for enterprise consulting.",
-    ibmAR:-24.5, ibmPrice:217.07 },
+  { date:"2026-07-22", type:"earnings",    cat:"cat-ibm-earnings",
+    title:"Q2 2026 — Non-GAAP EPS $2.93 beats $2.85 est; revenue $17.2B slightly below $17.4B est; IBM Z −42%",
+    detail:"IBM reported Q2 2026 revenue of $17.162B, slightly below the ~$17.4B consensus, driven by a sharp −42% decline in IBM Z mainframe revenue as the current z16 cycle matures. Non-GAAP (operating) EPS of $2.93 beat the $2.85 estimate. Software grew +5% (Red Hat Hybrid Cloud +11%, Data +19%). Consulting was flat YoY at $5.3B (+1% at constant currency). Infrastructure fell −7% on IBM Z weakness, partially offset by Distributed Infrastructure +37% (Power/Storage record pace). IBM updated full-year guidance to constant currency revenue growth of 4–5% and reiterated FCF growth of ~$1B YoY. IBM stock fell modestly (−2.3% abnormal return) on July 22 as the IBM Z decline and slight revenue miss outweighed the EPS beat. CEO Arvind Krishna highlighted accelerated go-to-market investment, Forward Deployed Engineers, and the Lightwell open-source security product as growth initiatives. Quantum investment of $10B+ over 5 years reaffirmed.",
+    ibmAR:-2.3, ibmPrice:205.77 },
   { date:"2026-04-22", type:"earnings",    cat:"cat-ibm-earnings",
     title:"Q1 2026 — EPS $1.88 beats $1.71; watsonx ARR reaches $3B run-rate",
     detail:"IBM reported Q1 2026 results with watsonx annual recurring revenue crossing the $3B run-rate milestone. AI agents deployed across 400+ enterprises. Consulting returned to +3% YoY growth — the first positive consulting quarter in 6 quarters. IBM raised full-year 2026 revenue guidance to $64–65B.",
@@ -1265,7 +1265,7 @@ function buildPeriodTable(d) {
 // SVG CHARTS
 // ═══════════════════════════════════════════════════════════════
 function buildPriceChart(anchorPrice) {
-  anchorPrice = anchorPrice || 217.07;
+  anchorPrice = anchorPrice || 205.83;
   const svg = document.getElementById("priceChart");
   const W=720,H=220,pL=50,pR=20,pT=16,pB=34;
   const N=252; // ~1 trading year
@@ -1288,7 +1288,7 @@ function buildPriceChart(anchorPrice) {
     { date:"2025-02-18", geo:-0.048, lbl:"GS downgrade"    },  // Goldman downgrade
     { date:"2025-03-04", geo:-0.026, lbl:"Tariffs"         },  // US 25% tariffs
     { date:"2025-05-20", geo:-0.132, lbl:"Anthropic '25"   },  // Anthropic COBOL blog
-    { date:"2026-07-14", geo:-0.252, lbl:"Q2 '26 miss"     },  // Q2 2026 earnings miss
+    { date:"2026-07-22", geo:-0.023, lbl:"Q2 '26 results"  },  // Q2 2026 earnings (slight miss, IBM Z -42%)
   ];
   // Filter to events inside this 1-year window and compute their trading-day index
   const GEO_SHOCKS = RAW_SHOCKS
