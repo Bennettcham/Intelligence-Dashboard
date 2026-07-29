@@ -1273,85 +1273,165 @@ function buildPeriodTable(d) {
 // SVG CHARTS
 // ═══════════════════════════════════════════════════════════════
 function buildPriceChart(anchorPrice) {
-  anchorPrice = anchorPrice || 205.83;
   const svg = document.getElementById("priceChart");
   const W=720,H=220,pL=50,pR=20,pT=16,pB=34;
-  const N=252; // ~1 trading year
 
-  // ── Helper: convert a real calendar date to a trading-day index (0=oldest, N-1=today) ──
-  const today = new Date();
-  const calDays = N * (365/252);  // calendar days spanned by 252 trading days
-  const startDate = new Date(today.getTime() - calDays * 86400000);
-  const dateToIdx = iso => {
-    const d = new Date(iso);
-    if (d < startDate || d > today) return null; // outside the 1-year window
-    const calOff = (d - startDate) / 86400000;
-    return Math.min(N-1, Math.max(0, Math.round(calOff * (252/365))));
+  // ── Verified Yahoo Finance daily closes (Jul 1 2025 → Jul 29 2026) ──
+  // Source: Yahoo Finance IBM historical data, pulled and verified July 2026
+  const REAL_CLOSES = [
+    ["2025-07-01",291.20],["2025-07-02",287.65],["2025-07-03",291.97],
+    ["2025-07-07",292.47],["2025-07-08",290.42],["2025-07-09",290.14],
+    ["2025-07-10",287.43],["2025-07-11",283.59],["2025-07-14",283.79],
+    ["2025-07-15",282.70],["2025-07-16",281.92],["2025-07-17",282.00],
+    ["2025-07-18",285.87],["2025-07-21",284.71],["2025-07-22",281.96],
+    ["2025-07-23",282.01],["2025-07-24",260.51],["2025-07-25",259.72],
+    ["2025-07-28",263.21],["2025-07-29",262.41],["2025-07-30",260.26],
+    ["2025-07-31",253.15],["2025-08-01",250.05],["2025-08-04",251.98],
+    ["2025-08-05",250.67],["2025-08-06",252.28],["2025-08-07",250.16],
+    ["2025-08-08",242.27],["2025-08-11",236.30],["2025-08-12",234.77],
+    ["2025-08-13",240.07],["2025-08-14",237.11],["2025-08-15",239.72],
+    ["2025-08-18",239.45],["2025-08-19",241.28],["2025-08-20",242.55],
+    ["2025-08-21",239.40],["2025-08-22",242.09],["2025-08-25",239.43],
+    ["2025-08-26",242.63],["2025-08-27",244.84],["2025-08-28",245.73],
+    ["2025-08-29",243.49],["2025-09-02",241.50],["2025-09-03",244.10],
+    ["2025-09-04",247.18],["2025-09-05",248.53],["2025-09-08",256.09],
+    ["2025-09-09",259.11],["2025-09-10",256.88],["2025-09-11",257.01],
+    ["2025-09-12",253.44],["2025-09-15",256.24],["2025-09-16",257.52],
+    ["2025-09-17",259.08],["2025-09-18",265.00],["2025-09-19",266.40],
+    ["2025-09-22",271.37],["2025-09-23",272.24],["2025-09-24",267.53],
+    ["2025-09-25",281.44],["2025-09-26",284.31],["2025-09-29",279.80],
+    ["2025-09-30",282.16],["2025-10-01",286.49],["2025-10-02",286.72],
+    ["2025-10-03",288.37],["2025-10-06",289.42],["2025-10-07",293.87],
+    ["2025-10-08",289.46],["2025-10-09",288.23],["2025-10-10",277.82],
+    ["2025-10-13",277.22],["2025-10-14",276.15],["2025-10-15",280.75],
+    ["2025-10-16",275.97],["2025-10-17",281.28],["2025-10-20",283.65],
+    ["2025-10-21",282.05],["2025-10-22",287.51],["2025-10-23",285.00],
+    ["2025-10-24",307.46],["2025-10-27",313.09],["2025-10-28",312.57],
+    ["2025-10-29",308.21],["2025-10-30",310.06],["2025-10-31",307.41],
+    ["2025-11-03",304.73],["2025-11-04",300.85],["2025-11-05",306.77],
+    ["2025-11-06",312.42],["2025-11-07",306.38],["2025-11-10",309.13],
+    ["2025-11-11",313.72],["2025-11-12",314.98],["2025-11-13",304.86],
+    ["2025-11-14",305.69],["2025-11-17",297.17],["2025-11-18",289.95],
+    ["2025-11-19",288.53],["2025-11-20",290.40],["2025-11-21",297.44],
+    ["2025-11-24",304.12],["2025-11-25",304.48],["2025-11-26",303.21],
+    ["2025-11-28",308.58],["2025-12-01",305.67],["2025-12-02",301.78],
+    ["2025-12-03",302.62],["2025-12-04",307.99],["2025-12-05",307.94],
+    ["2025-12-08",309.18],["2025-12-09",310.48],["2025-12-10",312.67],
+    ["2025-12-11",310.74],["2025-12-12",309.24],["2025-12-15",308.66],
+    ["2025-12-16",303.18],["2025-12-17",303.32],["2025-12-18",300.45],
+    ["2025-12-19",300.98],["2025-12-22",302.79],["2025-12-23",303.78],
+    ["2025-12-24",304.56],["2025-12-26",305.09],["2025-12-29",305.74],
+    ["2025-12-30",302.05],["2025-12-31",296.21],["2026-01-02",291.50],
+    ["2026-01-05",294.97],["2026-01-06",302.47],["2026-01-07",296.73],
+    ["2026-01-08",302.72],["2026-01-09",304.22],["2026-01-12",312.18],
+    ["2026-01-13",303.16],["2026-01-14",309.03],["2026-01-15",297.95],
+    ["2026-01-16",305.67],["2026-01-20",291.35],["2026-01-21",297.54],
+    ["2026-01-22",294.67],["2026-01-23",292.44],["2026-01-26",296.33],
+    ["2026-01-27",293.86],["2026-01-28",294.16],["2026-01-29",309.24],
+    ["2026-01-30",306.70],["2026-02-02",314.73],["2026-02-03",294.31],
+    ["2026-02-04",289.05],["2026-02-05",289.89],["2026-02-06",298.93],
+    ["2026-02-09",296.34],["2026-02-10",291.76],["2026-02-11",272.81],
+    ["2026-02-12",259.52],["2026-02-13",262.38],["2026-02-17",258.31],
+    ["2026-02-18",260.79],["2026-02-19",256.28],["2026-02-20",257.16],
+    ["2026-02-23",223.35],["2026-02-24",229.32],["2026-02-25",237.54],
+    ["2026-02-26",242.01],["2026-02-27",240.21],["2026-03-02",239.37],
+    ["2026-03-03",245.28],["2026-03-04",250.06],["2026-03-05",256.55],
+    ["2026-03-06",258.85],["2026-03-09",253.33],["2026-03-10",250.20],
+    ["2026-03-11",248.87],["2026-03-12",247.68],["2026-03-13",246.28],
+    ["2026-03-16",249.25],["2026-03-17",256.11],["2026-03-18",251.60],
+    ["2026-03-19",250.37],["2026-03-20",241.77],["2026-03-23",248.44],
+    ["2026-03-24",240.59],["2026-03-25",241.39],["2026-03-26",241.67],
+    ["2026-03-27",236.34],["2026-03-30",237.25],["2026-03-31",242.39],
+    ["2026-04-01",243.14],["2026-04-02",248.16],["2026-04-06",246.74],
+    ["2026-04-07",245.07],["2026-04-08",241.74],["2026-04-09",237.18],
+    ["2026-04-10",230.76],["2026-04-13",237.82],["2026-04-14",240.27],
+    ["2026-04-15",244.80],["2026-04-16",251.00],["2026-04-17",253.47],
+    ["2026-04-20",253.71],["2026-04-21",255.68],["2026-04-22",251.86],
+    ["2026-04-23",231.08],["2026-04-24",231.98],["2026-04-27",228.05],
+    ["2026-04-28",233.04],["2026-04-29",227.10],["2026-04-30",230.98],
+    ["2026-05-01",232.20],["2026-05-04",229.48],["2026-05-05",229.03],
+    ["2026-05-06",225.74],["2026-05-07",231.31],["2026-05-08",229.76],
+    ["2026-05-11",223.55],["2026-05-12",219.22],["2026-05-13",214.64],
+    ["2026-05-14",218.37],["2026-05-15",219.30],["2026-05-18",222.75],
+    ["2026-05-19",222.33],["2026-05-20",225.00],["2026-05-21",252.97],
+    ["2026-05-22",253.84],["2026-05-26",250.69],["2026-05-27",255.20],
+    ["2026-05-28",264.22],["2026-05-29",297.80],["2026-06-01",320.42],
+    ["2026-06-02",329.23],["2026-06-03",305.63],["2026-06-04",301.77],
+    ["2026-06-05",284.84],["2026-06-08",280.82],["2026-06-09",277.49],
+    ["2026-06-10",272.36],["2026-06-11",274.85],["2026-06-12",272.24],
+    ["2026-06-15",268.71],["2026-06-16",270.81],["2026-06-17",262.35],
+    ["2026-06-18",249.10],["2026-06-22",252.22],["2026-06-23",264.94],
+    ["2026-06-24",262.96],["2026-06-25",258.27],["2026-06-26",271.63],
+    ["2026-06-29",278.00],["2026-06-30",281.21],["2026-07-01",286.25],
+    ["2026-07-02",289.52],["2026-07-06",299.52],["2026-07-07",306.13],
+    ["2026-07-08",302.05],["2026-07-09",295.30],["2026-07-10",287.56],
+    ["2026-07-13",290.23],["2026-07-14",217.07],["2026-07-15",211.20],
+    ["2026-07-16",219.05],["2026-07-17",212.67],["2026-07-20",213.00],
+    ["2026-07-21",210.50],["2026-07-22",205.77],["2026-07-23",206.65],
+    ["2026-07-24",214.19],["2026-07-27",216.28],["2026-07-28",227.55],
+    ["2026-07-29",226.60],
+  ];
+
+  const N = REAL_CLOSES.length;
+  const dates  = REAL_CLOSES.map(r => r[0]);
+  const actual = REAL_CLOSES.map(r => r[1]);
+
+  // ── Geo shocks: identified geo events and their estimated geo-only % contribution ──
+  // For each date, geoShock = fraction of that day's move attributed to geo/company factors
+  // Counterfactual removes these shocks cumulatively
+  const GEO_SHOCK_MAP = {
+    "2025-07-24": -0.072,  // post-Q2 2025 earnings selloff
+    "2026-02-23": -0.131,  // Anthropic COBOL narrative spillover + macro
+    "2026-04-23": -0.082,  // Q1 2026 earnings miss reaction
+    "2026-07-14": -0.2521, // IBM 8-K pre-release — verified Yahoo Finance −25.21%
+    "2026-07-22": -0.023,  // Q2 2026 full earnings −2.25%
+  };
+  const EVENT_LABELS = {
+    "2025-07-24": "Q2 '25 selloff",
+    "2026-02-23": "Anthropic shock",
+    "2026-04-23": "Q1 '26 miss",
+    "2026-07-14": "Jul 14 pre-rel.",
+    "2026-07-22": "Q2 '26 results",
   };
 
-  // ── Geo shocks — keyed by real event dates, only those within the 1-year window ──
-  // geoPct = the IBM abnormal return on that day attributable to geo factors
-  const RAW_SHOCKS = [
-    { date:"2025-01-20", geo:-0.051, lbl:"DOGE cuts"       },  // DOGE federal IT cuts
-    { date:"2025-02-18", geo:-0.048, lbl:"GS downgrade"    },  // Goldman downgrade
-    { date:"2025-03-04", geo:-0.026, lbl:"Tariffs"         },  // US 25% tariffs
-    { date:"2025-05-20", geo:-0.132, lbl:"Anthropic '25"   },  // Anthropic COBOL blog
-    { date:"2026-07-14", geo:-0.2521, lbl:"Jul 14 pre-rel." },  // IBM 8-K pre-release — −25.21% verified Yahoo Finance, $290.23→$217.07, −$73.16/share
-    { date:"2026-07-22", geo:-0.023, lbl:"Q2 '26 results"  },  // Q2 2026 earnings (slight miss, IBM Z -42%)
-  ];
-  // Filter to events inside this 1-year window and compute their trading-day index
-  const GEO_SHOCKS = RAW_SHOCKS
-    .map(s => ({ ...s, idx: dateToIdx(s.date) }))
-    .filter(s => s.idx !== null);
-  const shockMap = {};
-  GEO_SHOCKS.forEach(s => { shockMap[s.idx] = (shockMap[s.idx] ?? 0) + s.geo; });
-
-  // ── Deterministic seeded PRNG — chart is stable across re-renders ──
-  let seed = 42;
-  const rand = () => { seed = (seed * 1664525 + 1013904223) & 0xffffffff; return (seed >>> 0) / 0xffffffff; };
-
-  // ── Build daily market + geo move arrays ──
-  const mktMoves = [], geoMoves = [];
-  for(let i=0;i<N;i++){
-    mktMoves.push((rand()-0.485)*0.011);
-    // Small daily geo noise; large shocks injected from shockMap
-    geoMoves.push((shockMap[i] ?? 0) + (rand()-0.515)*0.002);
+  // ── Build counterfactual: replay actual moves but strip out geo shocks ──
+  // counter[0] = actual[0] (same start).
+  // Each day: actual_ret = actual[i]/actual[i-1] - 1
+  //           geo_ret    = GEO_SHOCK_MAP[date] ?? 0
+  //           mkt_ret    = actual_ret - geo_ret
+  //           counter[i] = counter[i-1] * (1 + mkt_ret)
+  const counter = [actual[0]];
+  for (let i = 1; i < N; i++) {
+    const actualRet = (actual[i] - actual[i-1]) / actual[i-1];
+    const geoRet    = GEO_SHOCK_MAP[dates[i]] ?? 0;
+    const mktRet    = actualRet - geoRet;
+    counter.push(counter[i-1] * (1 + mktRet));
   }
-
-  // ── Solve for a shared start price so the ACTUAL line ends at anchorPrice today ──
-  // Both lines start at the same price (same world, 1 year ago).
-  // actual  applies mkt + geo;  counter applies mkt only.
-  // Since cumulative geo is negative, counter > actual throughout → green above blue ✓
-  const totalActual = mktMoves.reduce((p,m,i) => p*(1+m+geoMoves[i]), 1);
-  const startPrice  = anchorPrice / totalActual;
-
-  const actual=[], counter=[];
-  let a=startPrice, c=startPrice;
-  for(let i=0;i<N;i++){
-    a = a*(1+mktMoves[i]+geoMoves[i]);
-    c = c*(1+mktMoves[i]);
-    actual.push(a); counter.push(c);
+  // Override live price with fetched anchor if available
+  if (anchorPrice && Math.abs(anchorPrice - actual[N-1]) > 5) {
+    // Scale entire actual series proportionally if live price differs from pinned last close
+    const scale = anchorPrice / actual[N-1];
+    for (let i = 0; i < N; i++) { actual[i] *= scale; counter[i] *= scale; }
   }
-  // actual[N-1] === anchorPrice (today)
-  // counter[N-1] > anchorPrice (geo-free world, always higher given negative shocks)
 
   const allV=[...actual,...counter];
   const minV=Math.min(...allV)*0.97, maxV=Math.max(...allV)*1.02;
   const sx=i=>pL+(i/(N-1))*(W-pL-pR);
   const sy=v=>pT+(H-pT-pB)*(1-(v-minV)/(maxV-minV));
 
-  // ── X-axis month/year labels ──
+  // ── X-axis month/year labels — derived from pinned date array ──
   const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const xLabels = [];
-  let cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-  if(cursor < startDate) cursor = new Date(cursor.getFullYear(), cursor.getMonth()+1, 1);
-  while(cursor <= today) {
-    const calOff = (cursor - startDate) / 86400000;
-    const idx = Math.min(N-1, Math.max(0, Math.round(calOff*(252/365))));
-    const showYear = cursor.getMonth()===0 || xLabels.length===0;
-    xLabels.push({ idx, label: showYear ? `${MONTHS[cursor.getMonth()]} '${String(cursor.getFullYear()).slice(2)}` : MONTHS[cursor.getMonth()] });
-    cursor = new Date(cursor.getFullYear(), cursor.getMonth()+1, 1);
-  }
+  let lastMonth = -1;
+  dates.forEach((iso, i) => {
+    const d = new Date(iso);
+    const mo = d.getMonth(), yr = d.getFullYear();
+    if (mo !== lastMonth) {
+      const showYear = mo === 0 || xLabels.length === 0;
+      xLabels.push({ idx: i, label: showYear ? `${MONTHS[mo]} '${String(yr).slice(2)}` : MONTHS[mo] });
+      lastMonth = mo;
+    }
+  });
 
   let html="";
 
@@ -1380,11 +1460,13 @@ function buildPriceChart(anchorPrice) {
   // Counterfactual (geo-free) — green dashed, sits ABOVE actual
   html+=`<path d="${counter.map((v,i)=>`${i===0?"M":"L"} ${sx(i)} ${sy(v)}`).join(" ")}" fill="none" stroke="#3aa75b" stroke-width="1.8" stroke-dasharray="6,4" opacity="0.85"/>`;
 
-  // Actual price — blue solid, sits BELOW counterfactual
+  // Actual price — blue solid
   html+=`<path d="${actual.map((v,i)=>`${i===0?"M":"L"} ${sx(i)} ${sy(v)}`).join(" ")}" fill="none" stroke="#1a5ea8" stroke-width="2"/>`;
 
-  // Event markers at their real calendar positions
-  GEO_SHOCKS.forEach(({idx, lbl}) => {
+  // Event markers at verified dates
+  Object.entries(EVENT_LABELS).forEach(([date, lbl]) => {
+    const idx = dates.indexOf(date);
+    if (idx === -1) return;
     const cx=sx(idx), cy=sy(actual[idx]);
     const anchor = idx > N*0.8 ? "end" : "start";
     html+=`<circle cx="${cx}" cy="${cy}" r="4" fill="#d94f4f" opacity="0.9"/>`;
