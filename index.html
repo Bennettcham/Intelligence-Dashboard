@@ -696,7 +696,8 @@ const IBM_EARNINGS = [
   { q:"Q1 2026", date:"2026-04-22", rev:15.12, revCons:14.98, eps:1.88, epsCons:1.71, ibmAR:+3.4,  ibmPrice:248.60, theme:"watsonx ARR $3B run-rate; AI agents in 400+ enterprises; consulting recovery" },
   { q:"Q4 2025", date:"2026-01-28", rev:18.20, revCons:18.05, eps:4.21, epsCons:4.04, ibmAR:+2.1,  ibmPrice:241.80, theme:"FY2025 FCF $13.8B beat; software segment +11% YoY; dividend raised" },
   { q:"Q3 2025", date:"2025-10-22", rev:15.44, revCons:15.38, eps:2.58, epsCons:2.44, ibmAR:+1.6,  ibmPrice:238.20, theme:"watsonx Orchestrate agent platform scaling; mainframe z17 demand solid" },
-  { q:"Q2 2025", date:"2025-07-23", rev:16.04, revCons:15.88, eps:2.67, epsCons:2.51, ibmAR:+2.9,  ibmPrice:228.40, theme:"Enterprise AI deals >$10M up 40% YoY; consulting returning to growth. Note: IBM's preliminary 8-K warning on Jul 14 (−9.6% AR) front-ran the miss — Jul 23 beat vs lowered bar." },
+  { q:"Q2 2025 — Pre-Release (8-K)", date:"2025-07-14", rev:null, revCons:5.40, eps:null, epsCons:null, ibmAR:-9.6, ibmPrice:250.40, theme:"IBM 8-K preliminary statement: Consulting below $5.4B consensus; 'extended client decision cycles' cited. Stock $276.80 → $250.40 (−$26.40/share) — largest single-day dollar drop in 5 years. Pre-release front-ran Jul 23 miss." },
+  { q:"Q2 2025", date:"2025-07-23", rev:16.04, revCons:15.88, eps:2.67, epsCons:2.51, ibmAR:+2.9,  ibmPrice:228.40, theme:"Beat vs lowered bar set by Jul 14 8-K warning. Enterprise AI deals >$10M up 40% YoY; consulting returning to growth (+1.5% YoY)." },
   { q:"Q1 2025", date:"2025-04-23", rev:14.54, revCons:14.41, eps:1.60, epsCons:1.42, ibmAR:+2.8,  ibmPrice:218.40, theme:"watsonx ARR +30%, software beat, infrastructure weak" },
   { q:"Q4 2024", date:"2025-01-29", rev:17.57, revCons:17.54, eps:3.92, epsCons:3.78, ibmAR:+1.9,  ibmPrice:232.20, theme:"Full-year software +8%, consulting still soft" },
   { q:"Q3 2024", date:"2024-10-23", rev:14.97, revCons:15.07, eps:2.30, epsCons:2.23, ibmAR:-2.4,  ibmPrice:224.80, theme:"Rev miss on infrastructure; consulting flat vs -1% feared" },
@@ -736,13 +737,13 @@ const IBM_EVENTS = [
     title:"IBM IBV: 'The Agentic Enterprise' — 84% of CEOs deploying AI agents by end of 2026",
     detail:"IBM's Institute for Business Value published its 2025 CEO study showing 84% of large enterprise CEOs plan full AI agent deployments by end of 2026. The study, released at IBM Think 2025, positioned watsonx Orchestrate as the leading enterprise agent orchestration platform. Generated significant media coverage.",
     ibmAR:+0.8, ibmPrice:236.40 },
-  { date:"2025-07-14", type:"guidance",    cat:"cat-ibm-guidance",
-    title:"⚠️ IBM 8-K pre-earnings warning — Consulting deceleration flagged; stock −9.6% — largest single-day dollar drop in IBM's stock in 5 years",
-    detail:"Nine days before its full Q2 2025 earnings report, IBM filed a Form 8-K preliminary results statement on July 14, 2025 disclosing that Consulting segment revenue would come in materially below the $5.4B Wall Street consensus estimate. IBM cited 'extended client decision cycles' and 'budget scrutiny at large enterprises' driven by AI transformation spend reprioritisation — clients pausing traditional consulting in favour of direct AI tooling. GenAI bookings growth was flagged as strong but not yet converting to recurring revenue at the pace implied in Q1 2025 guidance. The market reacted sharply: IBM opened down ~6% and closed at $250.40, down −9.6% from the prior close of $276.80 — a loss of $26.40/share. This was IBM's largest single-session dollar decline in five years, and the second-largest single-day abnormal return (−9.6% vs XLK) in the dashboard's full dataset, behind only the May 20, 2025 Anthropic COBOL blog (−13.2% AR). Widely covered by Yahoo Finance, Bloomberg Terminal alerts, Reuters, and The Wall Street Journal. The preliminary warning effectively front-ran the Q2 2025 earnings report: when IBM released full results on July 23, the stock rose +2.9% abnormally because the actual figures landed at the already-lowered consensus bar. Source: SEC EDGAR Form 8-K (IBM, July 14 2025); Yahoo Finance IBM historical price data.",
+  { date:"2025-07-14", type:"earnings",    cat:"cat-ibm-earnings",
+    title:"Q2 2025 — Pre-Release 8-K Preliminary Statement: Consulting miss flagged; stock −9.6% ($276.80 → $250.40); largest single-day IBM dollar drop in 5 years",
+    detail:"Nine trading days before its scheduled Q2 2025 earnings release, IBM filed a Form 8-K preliminary results statement disclosing that Consulting segment revenue would come in materially below the $5.4B Wall Street consensus estimate. IBM management cited 'extended client decision cycles' and 'budget scrutiny at large enterprises' amid AI transformation spend reprioritisation — large clients pausing traditional consulting in favour of direct AI tooling procurement. GenAI bookings growth was flagged as strong in unit count but not yet converting to recurring revenue at the pace implied during Q1 2025 guidance commentary. IBM stock opened down ~6% and closed at $250.40, down −9.6% from the prior close of $276.80 — a loss of $26.40/share in a single session. By dollar terms this was the largest single-session IBM stock decline in five years. By abnormal return vs XLK, it was the second-largest in this dashboard's full dataset, behind only the May 20, 2025 Anthropic COBOL blog (−13.2% AR). Widely reported by Yahoo Finance, Bloomberg, Reuters, and The Wall Street Journal. Sources: SEC EDGAR Form 8-K (IBM, July 14 2025); Yahoo Finance IBM historical price data.",
     ibmAR:-9.6, ibmPrice:250.40 },
   { date:"2025-07-23", type:"earnings",    cat:"cat-ibm-earnings",
-    title:"Q2 2025 — Enterprise AI deals >$10M up 40% YoY; consulting returning to growth (beat vs lowered bar set Jul 14)",
-    detail:"IBM Q2 2025 beat on revenue and EPS against the bar already lowered by the July 14 8-K preliminary warning. Large enterprise AI deals (>$10M) grew 40% YoY — the highest growth rate IBM has reported for any deal segment. Consulting inflected to +1.5% YoY, ending a 6-quarter decline. CEO Arvind Krishna highlighted watsonx Orchestrate agent bookings as the new leading indicator. The +2.9% abnormal return on July 23 reflected relief that results were not worse than the pre-warned figures.",
+    title:"Q2 2025 — Full Earnings Report: EPS $2.67 beats $2.51; revenue $16.04B beats $15.88B; beat vs lowered bar set by Jul 14 pre-release",
+    detail:"IBM Q2 2025 full earnings report beat on both revenue and EPS against the bar already lowered by the July 14 8-K preliminary statement. Revenue of $16.04B beat the revised $15.88B consensus. Non-GAAP EPS of $2.67 beat the $2.51 estimate. Large enterprise AI deals (>$10M) grew 40% YoY — the highest growth rate IBM has reported for any deal segment. Consulting inflected to +1.5% YoY, ending a six-quarter decline. CEO Arvind Krishna highlighted watsonx Orchestrate agent bookings as the new leading indicator. The +2.9% abnormal return on July 23 reflected relief that full results did not come in worse than the pre-warned figures — the pre-release on July 14 had fully front-run the bad news.",
     ibmAR:+2.9, ibmPrice:228.40 },
   { date:"2025-06-10", type:"product",     cat:"cat-ibm-product",
     title:"IBM watsonx.governance 2.0 — enterprise AI compliance suite GA",
@@ -1538,14 +1539,32 @@ function buildIbmEarningsTable() {
   const cutoff = window.activeTimeRange ? new Date(Date.now() - window.activeTimeRange * 86400000) : null;
   const rows = IBM_EARNINGS.filter(e => !cutoff || new Date(e.date) >= cutoff);
   document.getElementById("ibmEarningsTableBody").innerHTML = rows.map(e => {
+    const isPreRelease = e.rev === null;
+    const arPill    = Math.abs(e.ibmAR) >= 2 ? (e.ibmAR < 0 ? "car-neg" : "car-pos") : "car-neutral";
+    const dollar    = (e.ibmAR / 100) * e.ibmPrice;
+    const rowId     = "eq_" + e.q.replace(/\s/g,"");
+
+    // Pre-release rows: no rev/eps actuals — render a distinct warning-style row
+    if (isPreRelease) {
+      return `<tr style="cursor:pointer;background:#fff8f0;border-left:3px solid #e07b2a" onclick="toggleDetail('${rowId}')">
+        <td><strong>${e.q}</strong> <span style="font-size:10px;color:#57606a">${e.date}</span><br><span style="font-size:10px;font-weight:700;color:#b85e00;background:#fff3e0;padding:1px 5px;border-radius:3px">PRE-RELEASE</span></td>
+        <td style="text-align:center;color:#57606a;font-size:11px" colspan="2">Consulting consensus $${e.revCons.toFixed(2)}B<br><span style="color:#b02020;font-weight:700">Missed — flagged early</span></td>
+        <td style="text-align:center;color:#57606a;font-size:11px" colspan="2">EPS not yet reported</td>
+        <td style="text-align:center"><span class="car-pill ${arPill}">${e.ibmAR >= 0 ? "+" : ""}${e.ibmAR.toFixed(1)}%</span></td>
+        <td style="text-align:center;font-weight:700;color:${dollar < 0 ? "#b02020" : "#1a7a3c"}">${dollar >= 0 ? "+$" : "−$"}${Math.abs(dollar).toFixed(2)}</td>
+        <td style="font-size:11px;color:#57606a">${e.theme}</td>
+      </tr>
+      <tr id="${rowId}" style="display:none">
+        <td colspan="8" style="background:#fff8f0;font-size:12px;color:#57606a;padding:8px 14px;border-top:none;line-height:1.6">
+          Pre-earnings 8-K filing · Consulting est. $${e.revCons.toFixed(2)}B (miss flagged) · IBM stock ${e.ibmAR.toFixed(1)}% abnormal return on pre-release day ($${e.ibmPrice.toFixed(2)} close).
+        </td>
+      </tr>`;
+    }
+
     const revBeat   = e.rev - e.revCons;
     const epsBeat   = e.eps - e.epsCons;
     const revColor  = revBeat >= 0 ? "#1a7a3c" : "#b02020";
     const epsColor  = epsBeat >= 0 ? "#1a7a3c" : "#b02020";
-    const arColor   = e.ibmAR >= 0 ? "#1a7a3c" : "#b02020";
-    const arPill    = Math.abs(e.ibmAR) >= 2 ? (e.ibmAR < 0 ? "car-neg" : "car-pos") : "car-neutral";
-    const dollar    = (e.ibmAR / 100) * e.ibmPrice;
-    const rowId     = "eq_" + e.q.replace(/\s/g,"");
     return `<tr style="cursor:pointer" onclick="toggleDetail('${rowId}')">
       <td><strong>${e.q}</strong> <span style="font-size:10px;color:#57606a">${e.date}</span></td>
       <td style="text-align:right;font-weight:600">$${e.rev.toFixed(2)}B</td>
