@@ -872,11 +872,19 @@ async function fetchYahooQuote(ticker) {
       if (p && p.regularMarketPrice?.raw != null) {
         const price        = p.regularMarketPrice.raw;
         const prev         = p.regularMarketPreviousClose?.raw ?? price;
-        // Yahoo provides these directly — use them verbatim for accuracy
-        const changePct    = p.regularMarketChangePercent?.raw != null
-          ? p.regularMarketChangePercent.raw * 100
-          : prev ? ((price - prev) / prev) * 100 : 0;
-        const changeDollar = p.regularMarketChange?.raw ?? (price - prev);
+
+        // regularMarketChangePercent.raw is a decimal fraction from Yahoo (e.g. 0.003217 = 0.3217%).
+        // Some CORS proxies return it pre-scaled as a full percentage (e.g. 0.3217).
+        // Guard: if |raw| >= 1 it is already a percentage; otherwise multiply by 100.
+        const rawPct       = p.regularMarketChangePercent?.raw;
+        const changePct    = rawPct != null
+          ? (Math.abs(rawPct) >= 1 ? rawPct : rawPct * 100)
+          : (prev ? ((price - prev) / prev) * 100 : 0);
+
+        // Always derive changeDollar from price - prev for consistency;
+        // use Yahoo's field only as a sanity-checked fallback.
+        const changeDollar = price - prev;
+
         const fiftyTwoWeekHigh = p.fiftyTwoWeekHigh?.raw ?? null;
         const fiftyTwoWeekLow  = p.fiftyTwoWeekLow?.raw  ?? null;
         const marketCap        = p.marketCap?.raw         ?? null;
