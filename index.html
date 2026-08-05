@@ -274,7 +274,7 @@
       <div class="score-card ic-blue">
         <div class="label">IBM Price (Last Close)</div>
         <div class="value skeleton" id="heroPrice">—</div>
-        <div class="sub">Counterfactual: <span id="heroCounterfactual" style="font-weight:700;color:#1a7a3c">—</span></div>
+        <div class="sub">Prior trading day close</div>
       </div>
       <div class="score-card ic-grn">
         <div class="label">Geo Risk Score</div>
@@ -301,7 +301,6 @@
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('ibm',this)">IBM Updates</button>
     <button class="tab-btn" onclick="switchTab('market',this)">Market Intelligence</button>
-    <button class="tab-btn" onclick="switchTab('price',this)">Counterfactual Path</button>
     <button class="tab-btn" onclick="switchTab('corr',this)">Geo Analysis</button>
     <button class="tab-btn" onclick="switchTab('regression',this)">Regression</button>
   </div>
@@ -464,46 +463,6 @@
       <div class="note" style="margin-top:10px">🟢 Green border = published within 24 hours · 🟠 Orange border = 24–72 hours · Headlines from all 7 peers sorted newest-first. Each is scored for IBM read-through direction — moves at peers with high IBM correlation are the most significant signals.</div>
     </div>
 
-  </div>
-
-  <!-- Tab: Counterfactual Price Path -->
-  <div class="tab-panel" id="tab-price">
-    <div class="section">
-      <div class="section-title">IBM Actual vs. Geopolitical Counterfactual Price Path (1 Year — Simulated)</div>
-
-      <!-- What this chart shows -->
-      <div class="scenario-box" style="margin-bottom:16px">
-        <h4 style="margin-bottom:6px">What this chart shows</h4>
-        <p style="font-size:13px;color:#1f2328;line-height:1.7;margin-bottom:8px">
-          Both lines start from the same estimated price one year ago. From that shared starting point they diverge based on one question:
-          <em>"What would IBM's stock price be today if geopolitical events had never happened?"</em>
-        </p>
-        <ul style="font-size:13px;color:#57606a;line-height:1.9;padding-left:18px;margin-bottom:4px">
-          <li><strong style="color:#1a5ea8">Blue line (Actual)</strong> — IBM's estimated price path including all market moves <em>and</em> the geopolitical shocks identified by the OLS model (COBOL narrative, DOGE cuts, tariffs, earnings misses, etc.).</li>
-          <li><strong style="color:#3aa75b">Green dashed (Counterfactual)</strong> — The price IBM <em>would have reached</em> if only broad market moves applied and every geo shock was zero. Because all identified geo events are net-negative for IBM, this line sits <em>above</em> the actual line — representing the "geo-free" premium IBM is not currently receiving.</li>
-          <li><strong style="color:#d94f4f">Red shaded area</strong> — The gap between the two lines at any point in time. This is the cumulative dollar cost of geopolitical drag on IBM's share price.</li>
-        </ul>
-        <p style="font-size:12px;color:#57606a">Red event markers (●) show the exact trading days when major geo shocks were applied. The series is simulated using the OLS model betas — it is directionally accurate but not a replay of historical prices.</p>
-      </div>
-
-      <div class="chart-wrap" style="padding:12px 8px">
-        <svg id="priceChart" viewBox="0 0 720 220" style="width:100%;height:auto"></svg>
-        <div class="legend-row" style="padding:0 8px;margin-top:10px">
-          <div class="legend-item"><div class="leg-line" style="background:#1a5ea8"></div>IBM Actual (with geo drag)</div>
-          <div class="legend-item"><div class="leg-line" style="background:#3aa75b;border-top:2px dashed #3aa75b"></div>Counterfactual (geo-free)</div>
-          <div class="legend-item"><div class="leg-line" style="background:#d94f4f;opacity:0.4;height:10px;border-radius:2px"></div>Geo Discount Gap</div>
-        </div>
-      </div>
-      <div class="note">Simulated 252-day series. Both lines share the same start price one year ago — the gap that opens between them is entirely due to geo shocks. Anchored to today's live IBM price.</div>
-    </div>
-    <div class="section">
-      <div class="section-title">Cumulative Geopolitical Price Impact — Key Periods</div>
-      <table>
-        <thead><tr><th>Period</th><th>IBM Actual Return</th><th>Counterfactual Return</th><th>Geo Impact (pp)</th><th>Dollar Loss/Gain</th></tr></thead>
-        <tbody id="periodTableBody"></tbody>
-      </table>
-      <div class="note">pp = percentage points. Dollar figures use the live IBM price. Geo Impact = how much geopolitical factors alone reduced IBM's return vs. the counterfactual.</div>
-    </div>
   </div>
 
   <!-- Tab: Geo Analysis (Correlation Matrix + Geo Event Log) -->
@@ -1029,8 +988,7 @@ async function fetchAllData() {
     const geoScore = proxiesLive.reduce((sum, p) => sum + p.beta * (p.changePct / 100), 0);
     const ibmPrice     = ibmQuote?.price ?? (liveData?.ibmPrice ?? 195.20);
     const ibmPrevClose = ibmQuote?.prev  ?? (liveData?.ibmPrevClose ?? ibmPrice);
-    const geoDollar = geoScore * ibmPrice;
-    const counterfactual = ibmPrice - geoDollar;
+    const geoDollar    = geoScore * ibmPrice;
 
     // Market component: approximate as IBM daily change minus geo component
     const ibmChangePct = ibmQuote?.changePct ?? 0;
@@ -1042,7 +1000,7 @@ async function fetchAllData() {
       geoScore
     );
 
-    liveData = { ibmPrice, ibmPrevClose, ibmChangePct, ibmChangeDollar: ibmQuote?.changeDollar ?? 0, proxiesLive, geoScore, geoDollar, counterfactual, marketPct, unexplainedPct, regime, fredIsDemo: fredResult.isDemo };
+    liveData = { ibmPrice, ibmPrevClose, ibmChangePct, ibmChangeDollar: ibmQuote?.changeDollar ?? 0, proxiesLive, geoScore, geoDollar, marketPct, unexplainedPct, regime, fredIsDemo: fredResult.isDemo };
 
     renderAll();
     setStatus("live", `IBM $${ibmPrice.toFixed(2)} · Updated ${new Date().toLocaleTimeString()}`);
@@ -1101,18 +1059,16 @@ function renderAll() {
   renderCorrTable(d);
   renderEventTable();
   renderRegTable();
-  buildPriceChart(d.ibmPrice);
   buildRollingChart();
-  buildPeriodTable(d);
   buildPeerEventTable();
 }
 
 function renderFallback() {
   // Render with demo data so the dashboard isn't blank on first load failure
   liveData = {
-    ibmPrice: 195.20, ibmChangePct: -1.84, ibmChangeDollar: -3.63,
+    ibmPrice: 195.20, ibmPrevClose: 198.83, ibmChangePct: -1.84, ibmChangeDollar: -3.63,
     proxiesLive: PROXIES.map(p => ({ ...p, price: null, changePct: p.name==="VIX"?3.2:p.name==="Gold"?0.8:p.name==="Oil"?1.1:p.name==="DXY"?0.4:p.name==="EEM"?-1.2:p.name==="ITA"?0.3:2.1, changeDollar:0, isDemo:true })),
-    geoScore: -0.01838, geoDollar: -3.59, counterfactual: 198.79,
+    geoScore: -0.01838, geoDollar: -3.59,
     marketPct: -0.02, unexplainedPct: 0.001, regime: "stress", fredIsDemo: true,
   };
   renderAll();
@@ -1164,8 +1120,6 @@ function renderHeroCards(d) {
   const priceEl = document.getElementById("heroPrice");
   priceEl.textContent = "$" + (d.ibmPrevClose ?? d.ibmPrice).toFixed(2);
   priceEl.className = "value"; // remove skeleton once data arrives
-  document.getElementById("heroCounterfactual").textContent = "$" + d.counterfactual.toFixed(2);
-  document.getElementById("heroCounterfactual").style.color = d.counterfactual > d.ibmPrice ? "#1a7a3c" : "#b02020";
   const geoEl = document.getElementById("heroGeoScore");
   geoEl.textContent = (d.geoScore >= 0 ? "+" : "") + (d.geoScore * 100).toFixed(3) + "%";
   geoEl.className = "value " + (d.geoScore < 0 ? "neg" : "pos");
@@ -1278,34 +1232,9 @@ function renderRegTable() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PERIOD TABLE (uses live IBM price as anchor)
-// ═══════════════════════════════════════════════════════════════
-function buildPeriodTable(d) {
-  const p = d.ibmPrice;
-  const periods = [
-    { label:"Last 30 days", actual:-26.1, cf:-2.4 },
-    { label:"Last 60 days", actual:-27.8, cf:-3.1 },
-    { label:"Last 90 days", actual:-24.9, cf:-3.6 },
-    { label:"YTD (2026)",   actual:-29.4, cf:-5.1 },
-    { label:"Full Year 2025",actual: 8.2, cf: 11.4 },
-  ];
-  document.getElementById("periodTableBody").innerHTML = periods.map(r => {
-    const geo = r.actual - r.cf;
-    const dollar = (geo/100)*p;
-    return `<tr>
-      <td>${r.label}</td>
-      <td style="font-weight:700;color:${r.actual<0?"#b02020":"#1a7a3c"}">${r.actual>=0?"+":""}${r.actual}%</td>
-      <td style="color:#57606a">${r.cf>=0?"+":""}${r.cf}%</td>
-      <td style="font-weight:700;color:${geo<0?"#b02020":"#1a7a3c"}">${geo>=0?"+":""}${geo.toFixed(1)} pp</td>
-      <td style="font-weight:700;color:${dollar<0?"#b02020":"#1a7a3c"}">${fmtDollar(dollar)}</td>
-    </tr>`;
-  }).join("");
-}
-
-// ═══════════════════════════════════════════════════════════════
 // SVG CHARTS
 // ═══════════════════════════════════════════════════════════════
-function buildPriceChart(anchorPrice) {
+function buildPriceChart_REMOVED(anchorPrice) {
   const svg = document.getElementById("priceChart");
   const W=720,H=220,pL=50,pR=20,pT=16,pB=34;
 
@@ -2145,7 +2074,6 @@ buildIbmEarningsTable();
 buildIbmEventsTable('all');
 renderRegTable();
 buildRollingChart();
-buildPriceChart();
 fetchIbmNewsFeed();
 fetchYahooNews();
 fetchPeerNews();
