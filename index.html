@@ -572,10 +572,11 @@ const FRED_SERIES = "USEPUINDXD";
 const FRED_API_KEY = "b4b4f90d71ab4ea55c22cd37a2da9775";
 
 // CORS proxies (tried in order, first success wins)
+// allorigins is listed last — it caches aggressively and returns stale data
 const CORS_PROXIES = [
-  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
   url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
   url => `https://thingproxy.freeboard.io/fetch/${url}`,
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
 ];
 
 const ATTR_COLORS = ["#3b82d4","#d94f4f","#7c5cd8"];
@@ -649,12 +650,12 @@ const MARKET_EVENTS = [
   { date:"2024-11-12", source:"McKinsey",     event:"MGI report: gen AI automates 70% of legacy code refactoring tasks",
     type:"research_threat",    sourcePctMove:null, ibmAR:-2.7, ibmPrice:233.80,
     detail:"McKinsey quantified automation potential for legacy code modernisation — a core IBM Consulting revenue stream — driving concern about long-term consulting volume." },
-  { date:"2024-10-01", source:"Amazon",       event:"AWS announces $4B Anthropic investment — doubles down on AI services",
+  { date:"2024-03-27", source:"Amazon",       event:"AWS announces follow-on $2.75B Anthropic investment — cements hyperscaler AI lead",
     type:"ma_competitive",     sourcePctMove:1.2,  ibmAR:-2.1, ibmPrice:224.40,
-    detail:"AWS deepened Anthropic commitment raised concern about watsonx's ability to compete against hyperscaler-backed foundation models for enterprise AI contracts." },
-  { date:"2024-09-25", source:"Salesforce",   event:"Agentforce launch — autonomous AI agents for enterprise workflows",
+    detail:"Amazon closed a $2.75B follow-on investment in Anthropic in March 2024, bringing total commitment to ~$4B (initial $1.25B was September 2023). The deepened AWS–Anthropic partnership raised concern about watsonx's ability to compete against hyperscaler-backed foundation models for enterprise AI contracts." },
+  { date:"2024-09-17", source:"Salesforce",   event:"Agentforce launch at Dreamforce — autonomous AI agents for enterprise workflows",
     type:"ai_launch",          sourcePctMove:8.8,  ibmAR:-1.9, ibmPrice:216.40,
-    detail:"Salesforce Agentforce was positioned as replacing traditional consulting-led AI implementations, overlapping IBM Consulting's AI practice." },
+    detail:"Salesforce unveiled Agentforce at Dreamforce (September 17–19, 2024), positioning autonomous AI agents as a replacement for traditional consulting-led AI implementations, directly overlapping IBM Consulting's AI practice." },
   { date:"2024-09-11", source:"Oracle",       event:"Q1 FY25 — Cloud +21%, AI infrastructure backlog record $99B",
     type:"earnings_beat",      sourcePctMove:11.4, ibmAR: 3.2, ibmPrice:214.80,
     detail:"Oracle's cloud and AI beat validated enterprise hybrid cloud demand — a direct IBM strategic theme." },
@@ -676,9 +677,9 @@ const MARKET_EVENTS = [
   { date:"2023-11-07", source:"OpenAI",       event:"GPT-4 Turbo: 128k context enables full-codebase legacy migration",
     type:"narrative_threat",   sourcePctMove:null, ibmAR:-3.8, ibmPrice:151.40,
     detail:"OpenAI's context window expansion was interpreted as enabling end-to-end legacy code migration that previously required IBM Consulting engagements." },
-  { date:"2023-08-22", source:"Cisco",        event:"Cisco acquires Splunk for $28B — enterprise IT consolidation signal",
+  { date:"2023-09-21", source:"Cisco",        event:"Cisco acquires Splunk for $28B — enterprise IT consolidation signal",
     type:"ma_competitive",     sourcePctMove:4.1,  ibmAR:-1.4, ibmPrice:144.80,
-    detail:"The Cisco-Splunk deal signalled large-scale consolidation in enterprise IT infrastructure, raising concern IBM's AIOps portfolio could be displaced." },
+    detail:"Cisco announced its $28B acquisition of Splunk on September 21, 2023. The deal signalled large-scale consolidation in enterprise IT infrastructure, raising concern IBM's AIOps portfolio could be displaced." },
   { date:"2023-07-25", source:"Microsoft",    event:"Copilot for Microsoft 365 GA — embedded AI across Office suite",
     type:"ai_launch",          sourcePctMove:4.2,  ibmAR: 1.1, ibmPrice:143.20,
     detail:"Microsoft's Copilot launch validated enterprise AI spending broadly — seen as positive for IBM watsonx. IBM moved up on sector sentiment." },
@@ -832,7 +833,7 @@ const EVENTS = [
   { date:"2023-10-07", event:"Hamas attacks Israel",                  cat:"war",      car:-3.94, price:145.60 },
   { date:"2023-11-15", event:"US–China summit (Biden–Xi)",            cat:"trade",    car: 1.88, price:148.20 },
   { date:"2024-01-31", event:"US expands AI chip export controls",    cat:"reg",      car:-3.72, price:162.40 },
-  { date:"2024-04-11", event:"EU AI Act final vote",                  cat:"reg",      car:-1.24, price:171.80 },
+  { date:"2024-03-13", event:"EU AI Act final vote",                  cat:"reg",      car:-1.24, price:171.80 },
   { date:"2024-07-15", event:"DOGE signals — Republican convention",  cat:"budget",   car:-2.88, price:183.20 },
   { date:"2024-11-05", event:"US Presidential Election",              cat:"election", car:-1.05, price:196.50 },
   { date:"2025-01-20", event:"DOGE federal IT spending cuts",         cat:"budget",   car:-5.11, price:218.40 },
@@ -887,30 +888,59 @@ async function fetchWithProxy(url, expectJson = false) {
 }
 
 async function fetchYahooQuote(ticker) {
-  // Try query1 first, fall back to query2 if proxy returns garbled response
-  const urls = [
-    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=2d`,
-    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=2d`,
+  // Strategy 1: v10 quoteSummary?modules=price — Yahoo's own quote page endpoint.
+  // Returns regularMarketPrice, regularMarketPreviousClose, regularMarketChange,
+  // and regularMarketChangePercent as explicit fields — no derivation needed.
+  const v10urls = [
+    `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=price`,
+    `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=price`,
   ];
-  let json = null;
-  for (const url of urls) {
+  for (const url of v10urls) {
     try {
       const text = await fetchWithProxy(url, true);
-      json = JSON.parse(text);
-      if (json?.chart?.result?.[0]?.meta) break;
-    } catch (_) { json = null; }
+      const parsed = JSON.parse(text);
+      const p = parsed?.quoteSummary?.result?.[0]?.price;
+      if (p && p.regularMarketPrice?.raw != null) {
+        const price        = p.regularMarketPrice.raw;
+        const prev         = p.regularMarketPreviousClose?.raw ?? price;
+        // Yahoo provides these directly — use them verbatim for accuracy
+        const changePct    = p.regularMarketChangePercent?.raw != null
+          ? p.regularMarketChangePercent.raw * 100
+          : prev ? ((price - prev) / prev) * 100 : 0;
+        const changeDollar = p.regularMarketChange?.raw ?? (price - prev);
+        const fiftyTwoWeekHigh = p.fiftyTwoWeekHigh?.raw ?? null;
+        const fiftyTwoWeekLow  = p.fiftyTwoWeekLow?.raw  ?? null;
+        const marketCap        = p.marketCap?.raw         ?? null;
+        return { ticker, price, prev, changePct, changeDollar, fiftyTwoWeekHigh, fiftyTwoWeekLow, marketCap };
+      }
+    } catch (_) { /* try next */ }
   }
-  const meta = json?.chart?.result?.[0]?.meta;
-  if (!meta) throw new Error(`No data for ${ticker}`);
-  const price       = meta.regularMarketPrice ?? meta.previousClose;
-  const prev        = meta.previousClose ?? meta.chartPreviousClose;
-  const changePct   = prev ? ((price - prev) / prev) * 100 : 0;
-  const changeDollar = price - (prev ?? price);
-  // Extra fields available for IBM summary card
-  const fiftyTwoWeekHigh = meta.fiftyTwoWeekHigh ?? null;
-  const fiftyTwoWeekLow  = meta.fiftyTwoWeekLow  ?? null;
-  const marketCap        = meta.marketCap         ?? null;
-  return { ticker, price, prev, changePct, changeDollar, fiftyTwoWeekHigh, fiftyTwoWeekLow, marketCap };
+
+  // Strategy 2: v8 chart endpoint — reliable fallback, change derived from meta fields.
+  const v8urls = [
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5d`,
+    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5d`,
+  ];
+  for (const url of v8urls) {
+    try {
+      const text = await fetchWithProxy(url, true);
+      const parsed = JSON.parse(text);
+      const meta = parsed?.chart?.result?.[0]?.meta;
+      if (meta?.regularMarketPrice != null) {
+        const price        = meta.regularMarketPrice;
+        // chartPreviousClose is always the prior trading day's close — use it exclusively
+        const prev         = meta.chartPreviousClose ?? meta.previousClose ?? price;
+        const changePct    = prev ? ((price - prev) / prev) * 100 : 0;
+        const changeDollar = price - prev;
+        const fiftyTwoWeekHigh = meta.fiftyTwoWeekHigh ?? null;
+        const fiftyTwoWeekLow  = meta.fiftyTwoWeekLow  ?? null;
+        const marketCap        = meta.marketCap         ?? null;
+        return { ticker, price, prev, changePct, changeDollar, fiftyTwoWeekHigh, fiftyTwoWeekLow, marketCap };
+      }
+    } catch (_) { /* try next */ }
+  }
+
+  throw new Error(`No data for ${ticker}`);
 }
 
 async function fetchFredEPU() {
@@ -997,7 +1027,8 @@ async function fetchAllData() {
 
     // Compute geo score: Σ beta_i × (changePct_i / 100)
     const geoScore = proxiesLive.reduce((sum, p) => sum + p.beta * (p.changePct / 100), 0);
-    const ibmPrice = ibmQuote?.price ?? (liveData?.ibmPrice ?? 195.20);
+    const ibmPrice     = ibmQuote?.price ?? (liveData?.ibmPrice ?? 195.20);
+    const ibmPrevClose = ibmQuote?.prev  ?? (liveData?.ibmPrevClose ?? ibmPrice);
     const geoDollar = geoScore * ibmPrice;
     const counterfactual = ibmPrice - geoDollar;
 
@@ -1011,7 +1042,7 @@ async function fetchAllData() {
       geoScore
     );
 
-    liveData = { ibmPrice, ibmChangePct, ibmChangeDollar: ibmQuote?.changeDollar ?? 0, proxiesLive, geoScore, geoDollar, counterfactual, marketPct, unexplainedPct, regime, fredIsDemo: fredResult.isDemo };
+    liveData = { ibmPrice, ibmPrevClose, ibmChangePct, ibmChangeDollar: ibmQuote?.changeDollar ?? 0, proxiesLive, geoScore, geoDollar, counterfactual, marketPct, unexplainedPct, regime, fredIsDemo: fredResult.isDemo };
 
     renderAll();
     setStatus("live", `IBM $${ibmPrice.toFixed(2)} · Updated ${new Date().toLocaleTimeString()}`);
@@ -1130,7 +1161,9 @@ function renderHeroCards(d) {
   const dollarEl = document.getElementById("heroDollar");
   dollarEl.textContent = fmtDollar(d.geoDollar);
   dollarEl.className = "value " + (d.geoDollar < 0 ? "neg" : "pos");
-  document.getElementById("heroPrice").textContent = "$" + d.ibmPrice.toFixed(2);
+  const priceEl = document.getElementById("heroPrice");
+  priceEl.textContent = "$" + (d.ibmPrevClose ?? d.ibmPrice).toFixed(2);
+  priceEl.className = "value"; // remove skeleton once data arrives
   document.getElementById("heroCounterfactual").textContent = "$" + d.counterfactual.toFixed(2);
   document.getElementById("heroCounterfactual").style.color = d.counterfactual > d.ibmPrice ? "#1a7a3c" : "#b02020";
   const geoEl = document.getElementById("heroGeoScore");
@@ -1253,7 +1286,7 @@ function buildPeriodTable(d) {
     { label:"Last 30 days", actual:-26.1, cf:-2.4 },
     { label:"Last 60 days", actual:-27.8, cf:-3.1 },
     { label:"Last 90 days", actual:-24.9, cf:-3.6 },
-    { label:"YTD (2026)",   actual:-22.5, cf:-5.1 },
+    { label:"YTD (2026)",   actual:-29.4, cf:-5.1 },
     { label:"Full Year 2025",actual: 8.2, cf: 11.4 },
   ];
   document.getElementById("periodTableBody").innerHTML = periods.map(r => {
@@ -1381,14 +1414,14 @@ function buildPriceChart(anchorPrice) {
   // Counterfactual removes these shocks cumulatively
   const GEO_SHOCK_MAP = {
     "2025-07-24": -0.072,  // post-Q2 2025 earnings selloff
-    "2026-02-23": -0.131,  // Anthropic COBOL narrative spillover + macro
+    "2026-02-23": -0.131,  // Goldman Sachs IBM downgrade + macro sell-off
     "2026-04-23": -0.082,  // Q1 2026 earnings miss reaction
     "2026-07-14": -0.2521, // IBM 8-K pre-release — verified Yahoo Finance −25.21%
     "2026-07-22": -0.023,  // Q2 2026 full earnings −2.25%
   };
   const EVENT_LABELS = {
     "2025-07-24": "Q2 '25 selloff",
-    "2026-02-23": "Anthropic shock",
+    "2026-02-23": "Goldman / macro",
     "2026-04-23": "Q1 '26 miss",
     "2026-07-14": "Jul 14 pre-rel.",
     "2026-07-22": "Q2 '26 results",
