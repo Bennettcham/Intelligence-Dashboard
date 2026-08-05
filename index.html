@@ -813,21 +813,28 @@ let refreshTimer = null;
 let _lastGoodProxyIdx = 0;
 
 async function fetchWithProxy(url, expectJson = false) {
+  // Append a unique timestamp so CORS proxies cannot serve a cached response.
+  const sep = url.includes("?") ? "&" : "?";
+  const bustUrl = url + sep + "_cb=" + Date.now();
+
   // Build a priority-ordered proxy list: last winner first, then the rest
   const order = [
     _lastGoodProxyIdx,
     ...CORS_PROXIES.map((_, i) => i).filter(i => i !== _lastGoodProxyIdx),
   ];
 
-  // Race all proxies in parallel with a 4-second timeout each;
+  // Race all proxies in parallel with a 6-second timeout each;
   // resolve with the first valid response, reject only when all fail
   return new Promise((resolve, reject) => {
     let settled = false;
     let pending = order.length;
 
     order.forEach(idx => {
-      const proxyUrl = CORS_PROXIES[idx](url);
-      fetch(proxyUrl, { signal: AbortSignal.timeout(4000) })
+      const proxyUrl = CORS_PROXIES[idx](bustUrl);
+      fetch(proxyUrl, {
+        signal: AbortSignal.timeout(6000),
+        cache: "no-store",
+      })
         .then(async res => {
           if (settled || !res.ok) { if (--pending === 0 && !settled) reject(new Error("All proxies failed")); return; }
           const text = await res.text();
