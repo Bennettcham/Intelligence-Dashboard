@@ -873,17 +873,11 @@ async function fetchYahooQuote(ticker) {
         const price        = p.regularMarketPrice.raw;
         const prev         = p.regularMarketPreviousClose?.raw ?? price;
 
-        // regularMarketChangePercent.raw is a decimal fraction from Yahoo (e.g. 0.003217 = 0.3217%).
-        // Some CORS proxies return it pre-scaled as a full percentage (e.g. 0.3217).
-        // Guard: if |raw| >= 1 it is already a percentage; otherwise multiply by 100.
-        const rawPct       = p.regularMarketChangePercent?.raw;
-        const changePct    = rawPct != null
-          ? (Math.abs(rawPct) >= 1 ? rawPct : rawPct * 100)
-          : (prev ? ((price - prev) / prev) * 100 : 0);
-
-        // Always derive changeDollar from price - prev for consistency;
-        // use Yahoo's field only as a sanity-checked fallback.
+        // Always derive both changePct and changeDollar from price - prev.
+        // Yahoo's regularMarketChangePercent.raw is a decimal fraction (e.g. 0.003217)
+        // but CORS proxies sometimes return it pre-scaled or incorrectly — avoid it.
         const changeDollar = price - prev;
+        const changePct    = prev ? ((price - prev) / prev) * 100 : 0;
 
         const fiftyTwoWeekHigh = p.fiftyTwoWeekHigh?.raw ?? null;
         const fiftyTwoWeekLow  = p.fiftyTwoWeekLow?.raw  ?? null;
