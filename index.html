@@ -931,6 +931,19 @@ async function fetchYahooQuote(ticker) {
   const changeDollar = price - prev;
   const changePct    = prev ? ((price - prev) / prev) * 100 : 0;
 
+  // Diagnostic — visible in browser DevTools console (F12 → Console)
+  console.log(`[fetchYahooQuote] ${ticker}`, {
+    price,
+    prev,
+    changeDollar: +changeDollar.toFixed(4),
+    changePct:    +changePct.toFixed(4),
+    source_price:  v10Result ? "v10" : "v8",
+    source_prev:   (v8Data?.result?.indicators?.quote?.[0]?.close ?? null) ? "v8-OHLC" : (v8Meta?.chartPreviousClose ? "v8-meta" : "v10/fallback"),
+    v8_closes:     (v8Data?.result?.indicators?.quote?.[0]?.close ?? []).slice(-3),
+    v8_chartPrevClose: v8Meta?.chartPreviousClose ?? null,
+    v10_prevClose:     v10Result?.regularMarketPreviousClose?.raw ?? null,
+  });
+
   const fiftyTwoWeekHigh = v10Result?.fiftyTwoWeekHigh?.raw ?? v8Meta?.fiftyTwoWeekHigh ?? null;
   const fiftyTwoWeekLow  = v10Result?.fiftyTwoWeekLow?.raw  ?? v8Meta?.fiftyTwoWeekLow  ?? null;
   const marketCap        = v10Result?.marketCap?.raw        ?? v8Meta?.marketCap         ?? null;
