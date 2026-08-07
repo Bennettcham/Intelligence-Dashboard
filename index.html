@@ -857,61 +857,67 @@ async function fetchWithProxy(url, expectJson = false) {
 }
 
 async function fetchYahooQuote(ticker) {
-  // Strategy 1: v10 quoteSummary?modules=price — Yahoo's own quote page endpoint.
-  // Returns regularMarketPrice, regularMarketPreviousClose, regularMarketChange,
-  // and regularMarketChangePercent as explicit fields — no derivation needed.
-  const v10urls = [
-    `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=price`,
-    `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=price`,
-  ];
-  for (const url of v10urls) {
-    try {
-      const text = await fetchWithProxy(url, true);
-      const parsed = JSON.parse(text);
-      const p = parsed?.quoteSummary?.result?.[0]?.price;
-      if (p && p.regularMarketPrice?.raw != null) {
-        const price        = p.regularMarketPrice.raw;
-        const prev         = p.regularMarketPreviousClose?.raw ?? price;
+  // We run both endpoints in parallel and combine the best fields from each:
+  //   v8  chart  → chartPreviousClose  = authoritative prior-day official close
+  //   v10 quoteSummary → regularMarketPrice = most up-to-date live/delayed price
+  //                    + 52-week hi/lo, market cap
+  // changePct and changeDollar are ALWAYS derived from price - prev (never from
+  // Yahoo's pre-computed change fields which vary in units across CORS proxies).
 
-        // Always derive both changePct and changeDollar from price - prev.
-        // Yahoo's regularMarketChangePercent.raw is a decimal fraction (e.g. 0.003217)
-        // but CORS proxies sometimes return it pre-scaled or incorrectly — avoid it.
-        const changeDollar = price - prev;
-        const changePct    = prev ? ((price - prev) / prev) * 100 : 0;
-
-        const fiftyTwoWeekHigh = p.fiftyTwoWeekHigh?.raw ?? null;
-        const fiftyTwoWeekLow  = p.fiftyTwoWeekLow?.raw  ?? null;
-        const marketCap        = p.marketCap?.raw         ?? null;
-        return { ticker, price, prev, changePct, changeDollar, fiftyTwoWeekHigh, fiftyTwoWeekLow, marketCap };
-      }
-    } catch (_) { /* try next */ }
-  }
-
-  // Strategy 2: v8 chart endpoint — reliable fallback, change derived from meta fields.
   const v8urls = [
     `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5d`,
     `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5d`,
   ];
-  for (const url of v8urls) {
-    try {
-      const text = await fetchWithProxy(url, true);
-      const parsed = JSON.parse(text);
-      const meta = parsed?.chart?.result?.[0]?.meta;
-      if (meta?.regularMarketPrice != null) {
-        const price        = meta.regularMarketPrice;
-        // chartPreviousClose is always the prior trading day's close — use it exclusively
-        const prev         = meta.chartPreviousClose ?? meta.previousClose ?? price;
-        const changePct    = prev ? ((price - prev) / prev) * 100 : 0;
-        const changeDollar = price - prev;
-        const fiftyTwoWeekHigh = meta.fiftyTwoWeekHigh ?? null;
-        const fiftyTwoWeekLow  = meta.fiftyTwoWeekLow  ?? null;
-        const marketCap        = meta.marketCap         ?? null;
-        return { ticker, price, prev, changePct, changeDollar, fiftyTwoWeekHigh, fiftyTwoWeekLow, marketCap };
-      }
-    } catch (_) { /* try next */ }
-  }
+  const v10urls = [
+    `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=price`,
+    `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=price`,
+  ];
 
-  throw new Error(`No data for ${ticker}`);
+  // Fetch both in parallel; each resolves to null on failure
+  const [v8Result, v10Result] = await Promise.all([
+    (async () => {
+      for (const url of v8urls) {
+        try {
+          const text = await fetchWithProxy(url, true);
+          const meta = JSON.parse(text)?.chart?.result?.[0]?.meta;
+          if (meta?.regularMarketPrice != null) return meta;
+        } catch (_) { /* try next */ }
+      }
+      return null;
+    })(),
+    (async () => {
+      for (const url of v10urls) {
+        try {
+          const text = await fetchWithProxy(url, true);
+          const p = JSON.parse(text)?.quoteSummary?.result?.[0]?.price;
+          if (p?.regularMarketPrice?.raw != null) return p;
+        } catch (_) { /* try next */ }
+      }
+      return null;
+    })(),
+  ]);
+
+  if (!v8Result && !v10Result) throw new Error(`No data for ${ticker}`);
+
+  // Live price: prefer v10 (more current), fall back to v8
+  const price = v10Result?.regularMarketPrice?.raw ?? v8Result?.regularMarketPrice;
+
+  // Previous close: ALWAYS use v8 chartPreviousClose — it is the authoritative
+  // official prior-day close. v10's regularMarketPreviousClose can reflect the
+  // intraday session open or a stale value depending on market state and proxy.
+  const prev = v8Result?.chartPreviousClose
+            ?? v8Result?.previousClose
+            ?? v10Result?.regularMarketPreviousClose?.raw
+            ?? price;
+
+  const changeDollar = price - prev;
+  const changePct    = prev ? ((price - prev) / prev) * 100 : 0;
+
+  const fiftyTwoWeekHigh = v10Result?.fiftyTwoWeekHigh?.raw ?? v8Result?.fiftyTwoWeekHigh ?? null;
+  const fiftyTwoWeekLow  = v10Result?.fiftyTwoWeekLow?.raw  ?? v8Result?.fiftyTwoWeekLow  ?? null;
+  const marketCap        = v10Result?.marketCap?.raw        ?? v8Result?.marketCap         ?? null;
+
+  return { ticker, price, prev, changePct, changeDollar, fiftyTwoWeekHigh, fiftyTwoWeekLow, marketCap };
 }
 
 async function fetchFredEPU() {
