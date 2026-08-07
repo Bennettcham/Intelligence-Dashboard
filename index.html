@@ -874,13 +874,15 @@ async function fetchYahooQuote(ticker) {
   ];
 
   // Fetch both in parallel; each resolves to null on failure
-  const [v8Result, v10Result] = await Promise.all([
+  const [v8Data, v10Result] = await Promise.all([
     (async () => {
       for (const url of v8urls) {
         try {
-          const text = await fetchWithProxy(url, true);
-          const meta = JSON.parse(text)?.chart?.result?.[0]?.meta;
-          if (meta?.regularMarketPrice != null) return meta;
+          const text  = await fetchWithProxy(url, true);
+          const parsed = JSON.parse(text);
+          const result = parsed?.chart?.result?.[0];
+          const meta   = result?.meta;
+          if (meta?.regularMarketPrice != null) return { meta, result };
         } catch (_) { /* try next */ }
       }
       return null;
@@ -897,25 +899,41 @@ async function fetchYahooQuote(ticker) {
     })(),
   ]);
 
-  if (!v8Result && !v10Result) throw new Error(`No data for ${ticker}`);
+  if (!v8Data && !v10Result) throw new Error(`No data for ${ticker}`);
 
-  // Live price: prefer v10 (more current), fall back to v8
-  const price = v10Result?.regularMarketPrice?.raw ?? v8Result?.regularMarketPrice;
+  const v8Meta = v8Data?.meta ?? null;
 
-  // Previous close: ALWAYS use v8 chartPreviousClose — it is the authoritative
-  // official prior-day close. v10's regularMarketPreviousClose can reflect the
-  // intraday session open or a stale value depending on market state and proxy.
-  const prev = v8Result?.chartPreviousClose
-            ?? v8Result?.previousClose
-            ?? v10Result?.regularMarketPreviousClose?.raw
-            ?? price;
+  // Live price: prefer v10 (more current), fall back to v8 meta
+  const price = v10Result?.regularMarketPrice?.raw ?? v8Meta?.regularMarketPrice;
+
+  // Previous close — priority order, most reliable first:
+  // 1. Second-to-last daily close from the v8 OHLC array (works at all times,
+  //    even pre/post market and weekends when meta fields are unreliable).
+  // 2. v8 meta.chartPreviousClose (populated during market hours only).
+  // 3. v8 meta.previousClose.
+  // 4. v10 regularMarketPreviousClose (least reliable — avoid if possible).
+  let prev = null;
+
+  const closes = v8Data?.result?.indicators?.quote?.[0]?.close;
+  if (Array.isArray(closes) && closes.length >= 2) {
+    // Walk back from the end to find the last two valid (non-null) closes
+    const validCloses = closes.filter(c => c != null);
+    if (validCloses.length >= 2) {
+      prev = validCloses[validCloses.length - 2]; // second-to-last = prior session close
+    }
+  }
+
+  if (prev == null) prev = v8Meta?.chartPreviousClose ?? null;
+  if (prev == null) prev = v8Meta?.previousClose ?? null;
+  if (prev == null) prev = v10Result?.regularMarketPreviousClose?.raw ?? null;
+  if (prev == null) prev = price; // last resort
 
   const changeDollar = price - prev;
   const changePct    = prev ? ((price - prev) / prev) * 100 : 0;
 
-  const fiftyTwoWeekHigh = v10Result?.fiftyTwoWeekHigh?.raw ?? v8Result?.fiftyTwoWeekHigh ?? null;
-  const fiftyTwoWeekLow  = v10Result?.fiftyTwoWeekLow?.raw  ?? v8Result?.fiftyTwoWeekLow  ?? null;
-  const marketCap        = v10Result?.marketCap?.raw        ?? v8Result?.marketCap         ?? null;
+  const fiftyTwoWeekHigh = v10Result?.fiftyTwoWeekHigh?.raw ?? v8Meta?.fiftyTwoWeekHigh ?? null;
+  const fiftyTwoWeekLow  = v10Result?.fiftyTwoWeekLow?.raw  ?? v8Meta?.fiftyTwoWeekLow  ?? null;
+  const marketCap        = v10Result?.marketCap?.raw        ?? v8Meta?.marketCap         ?? null;
 
   return { ticker, price, prev, changePct, changeDollar, fiftyTwoWeekHigh, fiftyTwoWeekLow, marketCap };
 }
