@@ -907,26 +907,27 @@ async function fetchYahooQuote(ticker) {
   const price = v10Result?.regularMarketPrice?.raw ?? v8Meta?.regularMarketPrice;
 
   // Previous close — priority order, most reliable first:
-  // 1. Second-to-last daily close from the v8 OHLC array (works at all times,
-  //    even pre/post market and weekends when meta fields are unreliable).
-  // 2. v8 meta.chartPreviousClose (populated during market hours only).
-  // 3. v8 meta.previousClose.
-  // 4. v10 regularMarketPreviousClose (least reliable — avoid if possible).
+  // 1. v10 regularMarketPreviousClose — Yahoo's dedicated prior-session close field.
+  //    Always returns the last official trading-day close regardless of when queried
+  //    (weekends, holidays, pre/post-market). Most reliable source.
+  // 2. v8 meta.chartPreviousClose — accurate during live market hours.
+  // 3. v8 meta.previousClose — alternate v8 key.
+  // 4. Second-to-last valid close from v8 OHLC — last resort only.
   let prev = null;
 
-  const closes = v8Data?.result?.indicators?.quote?.[0]?.close;
-  if (Array.isArray(closes) && closes.length >= 2) {
-    // Walk back from the end to find the last two valid (non-null) closes
-    const validCloses = closes.filter(c => c != null);
-    if (validCloses.length >= 2) {
-      prev = validCloses[validCloses.length - 2]; // second-to-last = prior session close
+  if (prev == null) prev = v10Result?.regularMarketPreviousClose?.raw ?? null;
+  if (prev == null) prev = v8Meta?.chartPreviousClose ?? null;
+  if (prev == null) prev = v8Meta?.previousClose ?? null;
+
+  if (prev == null) {
+    const closes = v8Data?.result?.indicators?.quote?.[0]?.close;
+    if (Array.isArray(closes)) {
+      const validCloses = closes.filter(c => c != null);
+      if (validCloses.length >= 2) prev = validCloses[validCloses.length - 2];
     }
   }
 
-  if (prev == null) prev = v8Meta?.chartPreviousClose ?? null;
-  if (prev == null) prev = v8Meta?.previousClose ?? null;
-  if (prev == null) prev = v10Result?.regularMarketPreviousClose?.raw ?? null;
-  if (prev == null) prev = price; // last resort
+  if (prev == null) prev = price; // absolute last resort
 
   const changeDollar = price - prev;
   const changePct    = prev ? ((price - prev) / prev) * 100 : 0;
