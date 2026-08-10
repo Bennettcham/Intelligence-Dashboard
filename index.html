@@ -294,7 +294,7 @@
       <thead><tr><th>Component</th><th>Return (%)</th><th>Dollar Impact</th><th>Share of Move</th><th>Description</th></tr></thead>
       <tbody id="attrTableBody"></tbody>
     </table>
-    <div class="note">Market Component = IBM daily return − Geo component (net sector/company move). Geopolitical Component = Σ(geo proxy betas × proxy changes). Unexplained = absorbed into Market component.</div>
+    <div class="note">Market Component = XLK beta × XLK return. Geopolitical Component = Σ(geo proxy betas × proxy changes). Unexplained = residual after both are removed.</div>
   </div>
 
   <!-- Tabs -->
@@ -907,33 +907,42 @@ async function fetchYahooQuote(ticker) {
   const price = v10Result?.regularMarketPrice?.raw ?? v8Meta?.regularMarketPrice;
 
   // Previous close — priority order, most reliable first:
-  // 1. v10 regularMarketPreviousClose — Yahoo explicitly sets this to the last
-  //    official trading session close regardless of when (weekend/after-hours) queried.
-  // 2. v8 meta.chartPreviousClose — reliable during market hours but on weekends
-  //    this reflects the close prior to the chart range start, not Friday's close.
-  // 3. v8 meta.previousClose — alternate key for the same v8 field.
-  // 4. Last valid close from v8 OHLC array — last element of the series.
+  // 1. Second-to-last daily close from the v8 OHLC array (works at all times,
+  //    even pre/post market and weekends when meta fields are unreliable).
+  // 2. v8 meta.chartPreviousClose (populated during market hours only).
+  // 3. v8 meta.previousClose.
+  // 4. v10 regularMarketPreviousClose (least reliable — avoid if possible).
   let prev = null;
 
-  if (prev == null) prev = v10Result?.regularMarketPreviousClose?.raw ?? null;
-  if (prev == null) prev = v8Meta?.chartPreviousClose ?? null;
-  if (prev == null) prev = v8Meta?.previousClose ?? null;
-
-  if (prev == null) {
-    // Last resort: last valid close in the OHLC series
-    const closes = v8Data?.result?.indicators?.quote?.[0]?.close;
-    if (Array.isArray(closes) && closes.length >= 1) {
-      const validCloses = closes.filter(c => c != null);
-      if (validCloses.length >= 1) {
-        prev = validCloses[validCloses.length - 1];
-      }
+  const closes = v8Data?.result?.indicators?.quote?.[0]?.close;
+  if (Array.isArray(closes) && closes.length >= 2) {
+    // Walk back from the end to find the last two valid (non-null) closes
+    const validCloses = closes.filter(c => c != null);
+    if (validCloses.length >= 2) {
+      prev = validCloses[validCloses.length - 2]; // second-to-last = prior session close
     }
   }
 
-  if (prev == null) prev = price; // absolute last resort
+  if (prev == null) prev = v8Meta?.chartPreviousClose ?? null;
+  if (prev == null) prev = v8Meta?.previousClose ?? null;
+  if (prev == null) prev = v10Result?.regularMarketPreviousClose?.raw ?? null;
+  if (prev == null) prev = price; // last resort
 
   const changeDollar = price - prev;
   const changePct    = prev ? ((price - prev) / prev) * 100 : 0;
+
+  // Diagnostic — visible in browser DevTools console (F12 → Console)
+  console.log(`[fetchYahooQuote] ${ticker}`, {
+    price,
+    prev,
+    changeDollar: +changeDollar.toFixed(4),
+    changePct:    +changePct.toFixed(4),
+    source_price:  v10Result ? "v10" : "v8",
+    source_prev:   (v8Data?.result?.indicators?.quote?.[0]?.close ?? null) ? "v8-OHLC" : (v8Meta?.chartPreviousClose ? "v8-meta" : "v10/fallback"),
+    v8_closes:     (v8Data?.result?.indicators?.quote?.[0]?.close ?? []).slice(-3),
+    v8_chartPrevClose: v8Meta?.chartPreviousClose ?? null,
+    v10_prevClose:     v10Result?.regularMarketPreviousClose?.raw ?? null,
+  });
 
   const fiftyTwoWeekHigh = v10Result?.fiftyTwoWeekHigh?.raw ?? v8Meta?.fiftyTwoWeekHigh ?? null;
   const fiftyTwoWeekLow  = v10Result?.fiftyTwoWeekLow?.raw  ?? v8Meta?.fiftyTwoWeekLow  ?? null;
@@ -1204,7 +1213,7 @@ function renderAttribution(d) {
       <td style="text-align:center;font-weight:700;color:${dollar<0?"#b02020":dollar>0?"#1a7a3c":"#57606a"}">${fmtDollar(dollar)}</td>
       <td style="text-align:center;color:#57606a">${share}%</td>
       <td style="font-size:12px;color:#57606a">${
-        s.label.includes("Market") ? "IBM's total daily move minus the geopolitical component (residual market/sector move)" :
+        s.label.includes("Market") ? "IBM's co-movement with tech sector (XLK beta = 0.92)" :
         s.label.includes("Geo")    ? "VIX · Gold · Oil · DXY · EEM · ITA · EPU combined" :
                                      "Company-specific news, earnings surprises"
       }</td>
