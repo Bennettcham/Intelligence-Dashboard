@@ -294,7 +294,7 @@
       <thead><tr><th>Component</th><th>Return (%)</th><th>Dollar Impact</th><th>Share of Move</th><th>Description</th></tr></thead>
       <tbody id="attrTableBody"></tbody>
     </table>
-    <div class="note">Market Component = XLK beta × XLK return. Geopolitical Component = Σ(geo proxy betas × proxy changes). Unexplained = residual after both are removed.</div>
+    <div class="note">Market Component = IBM daily return − Geo component (net sector/company move). Geopolitical Component = Σ(geo proxy betas × proxy changes). Unexplained = absorbed into Market component.</div>
   </div>
 
   <!-- Tabs -->
@@ -869,8 +869,8 @@ async function fetchYahooQuote(ticker) {
     `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5d`,
   ];
   const v10urls = [
-    `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=price`,
-    `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=price`,
+    `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=price%2CdefaultKeyStatistics`,
+    `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=price%2CdefaultKeyStatistics`,
   ];
 
   // Fetch both in parallel; each resolves to null on failure
@@ -891,8 +891,15 @@ async function fetchYahooQuote(ticker) {
       for (const url of v10urls) {
         try {
           const text = await fetchWithProxy(url, true);
-          const p = JSON.parse(text)?.quoteSummary?.result?.[0]?.price;
-          if (p?.regularMarketPrice?.raw != null) return p;
+          const res = JSON.parse(text)?.quoteSummary?.result?.[0];
+          const p = res?.price;
+          if (p?.regularMarketPrice?.raw != null) {
+            // marketCap lives on price module; if missing, pull from defaultKeyStatistics
+            if (p.marketCap?.raw == null && res?.defaultKeyStatistics?.enterpriseValue?.raw != null) {
+              p.marketCap = { raw: res.defaultKeyStatistics.marketCap?.raw ?? null };
+            }
+            return p;
+          }
         } catch (_) { /* try next */ }
       }
       return null;
@@ -930,19 +937,6 @@ async function fetchYahooQuote(ticker) {
 
   const changeDollar = price - prev;
   const changePct    = prev ? ((price - prev) / prev) * 100 : 0;
-
-  // Diagnostic — visible in browser DevTools console (F12 → Console)
-  console.log(`[fetchYahooQuote] ${ticker}`, {
-    price,
-    prev,
-    changeDollar: +changeDollar.toFixed(4),
-    changePct:    +changePct.toFixed(4),
-    source_price:  v10Result ? "v10" : "v8",
-    source_prev:   (v8Data?.result?.indicators?.quote?.[0]?.close ?? null) ? "v8-OHLC" : (v8Meta?.chartPreviousClose ? "v8-meta" : "v10/fallback"),
-    v8_closes:     (v8Data?.result?.indicators?.quote?.[0]?.close ?? []).slice(-3),
-    v8_chartPrevClose: v8Meta?.chartPreviousClose ?? null,
-    v10_prevClose:     v10Result?.regularMarketPreviousClose?.raw ?? null,
-  });
 
   const fiftyTwoWeekHigh = v10Result?.fiftyTwoWeekHigh?.raw ?? v8Meta?.fiftyTwoWeekHigh ?? null;
   const fiftyTwoWeekLow  = v10Result?.fiftyTwoWeekLow?.raw  ?? v8Meta?.fiftyTwoWeekLow  ?? null;
@@ -1213,7 +1207,7 @@ function renderAttribution(d) {
       <td style="text-align:center;font-weight:700;color:${dollar<0?"#b02020":dollar>0?"#1a7a3c":"#57606a"}">${fmtDollar(dollar)}</td>
       <td style="text-align:center;color:#57606a">${share}%</td>
       <td style="font-size:12px;color:#57606a">${
-        s.label.includes("Market") ? "IBM's co-movement with tech sector (XLK beta = 0.92)" :
+        s.label.includes("Market") ? "IBM's total daily move minus the geopolitical component (residual market/sector move)" :
         s.label.includes("Geo")    ? "VIX · Gold · Oil · DXY · EEM · ITA · EPU combined" :
                                      "Company-specific news, earnings surprises"
       }</td>
