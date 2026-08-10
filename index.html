@@ -907,24 +907,25 @@ async function fetchYahooQuote(ticker) {
   const price = v10Result?.regularMarketPrice?.raw ?? v8Meta?.regularMarketPrice;
 
   // Previous close — priority order, most reliable first:
-  // 1. v8 meta.chartPreviousClose — exchange-official prior-day close, most reliable.
-  // 2. v8 meta.previousClose — same field under alternate key.
-  // 3. v10 regularMarketPreviousClose — less reliable across CORS proxies but valid fallback.
-  // 4. Last valid close from the v8 OHLC array — the final element is today's/last session
-  //    close; because price comes from v10 (live), the OHLC last element = prior official close.
+  // 1. v10 regularMarketPreviousClose — Yahoo explicitly sets this to the last
+  //    official trading session close regardless of when (weekend/after-hours) queried.
+  // 2. v8 meta.chartPreviousClose — reliable during market hours but on weekends
+  //    this reflects the close prior to the chart range start, not Friday's close.
+  // 3. v8 meta.previousClose — alternate key for the same v8 field.
+  // 4. Last valid close from v8 OHLC array — last element of the series.
   let prev = null;
 
+  if (prev == null) prev = v10Result?.regularMarketPreviousClose?.raw ?? null;
   if (prev == null) prev = v8Meta?.chartPreviousClose ?? null;
   if (prev == null) prev = v8Meta?.previousClose ?? null;
-  if (prev == null) prev = v10Result?.regularMarketPreviousClose?.raw ?? null;
 
   if (prev == null) {
-    // Last resort: last valid close in the OHLC series = prior session close
+    // Last resort: last valid close in the OHLC series
     const closes = v8Data?.result?.indicators?.quote?.[0]?.close;
     if (Array.isArray(closes) && closes.length >= 1) {
       const validCloses = closes.filter(c => c != null);
       if (validCloses.length >= 1) {
-        prev = validCloses[validCloses.length - 1]; // last confirmed session close
+        prev = validCloses[validCloses.length - 1];
       }
     }
   }
