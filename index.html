@@ -869,8 +869,8 @@ async function fetchYahooQuote(ticker) {
     `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5d`,
   ];
   const v10urls = [
-    `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=price%2CdefaultKeyStatistics`,
-    `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=price%2CdefaultKeyStatistics`,
+    `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=price`,
+    `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=price`,
   ];
 
   // Fetch both in parallel; each resolves to null on failure
@@ -891,15 +891,8 @@ async function fetchYahooQuote(ticker) {
       for (const url of v10urls) {
         try {
           const text = await fetchWithProxy(url, true);
-          const res = JSON.parse(text)?.quoteSummary?.result?.[0];
-          const p = res?.price;
-          if (p?.regularMarketPrice?.raw != null) {
-            // marketCap lives on price module; if missing, pull from defaultKeyStatistics
-            if (p.marketCap?.raw == null && res?.defaultKeyStatistics?.enterpriseValue?.raw != null) {
-              p.marketCap = { raw: res.defaultKeyStatistics.marketCap?.raw ?? null };
-            }
-            return p;
-          }
+          const p = JSON.parse(text)?.quoteSummary?.result?.[0]?.price;
+          if (p?.regularMarketPrice?.raw != null) return p;
         } catch (_) { /* try next */ }
       }
       return null;
