@@ -865,8 +865,8 @@ async function fetchYahooQuote(ticker) {
   // Yahoo's pre-computed change fields which vary in units across CORS proxies).
 
   const v8urls = [
-    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5d`,
-    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5d`,
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`,
+    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`,
   ];
   const v10urls = [
     `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=price`,
@@ -906,44 +906,19 @@ async function fetchYahooQuote(ticker) {
   // Live price: prefer v10 (more current), fall back to v8 meta
   const price = v10Result?.regularMarketPrice?.raw ?? v8Meta?.regularMarketPrice;
 
-  // Previous close — priority order, most reliable first:
-  // 1. v10 regularMarketPreviousClose — Yahoo's dedicated prior-session close field.
-  //    Always returns the last official trading-day close regardless of when queried
-  //    (weekends, holidays, pre/post-market). Most reliable source.
-  // 2. v8 meta.chartPreviousClose — accurate during live market hours.
-  // 3. v8 meta.previousClose — alternate v8 key.
-  // 4. Second-to-last valid close from v8 OHLC — last resort only.
+  // Previous close:
+  // range=1d gives a single today-candle; chartPreviousClose on that response is
+  // always exactly the prior session official close (Friday on a Monday, etc.).
+  // Fall back to v10 regularMarketPreviousClose, then v8 previousClose.
   let prev = null;
 
-  if (prev == null) prev = v10Result?.regularMarketPreviousClose?.raw ?? null;
   if (prev == null) prev = v8Meta?.chartPreviousClose ?? null;
   if (prev == null) prev = v8Meta?.previousClose ?? null;
-
-  if (prev == null) {
-    const closes = v8Data?.result?.indicators?.quote?.[0]?.close;
-    if (Array.isArray(closes)) {
-      const validCloses = closes.filter(c => c != null);
-      if (validCloses.length >= 2) prev = validCloses[validCloses.length - 2];
-    }
-  }
-
+  if (prev == null) prev = v10Result?.regularMarketPreviousClose?.raw ?? null;
   if (prev == null) prev = price; // absolute last resort
 
   const changeDollar = price - prev;
   const changePct    = prev ? ((price - prev) / prev) * 100 : 0;
-
-  // Diagnostic — visible in browser DevTools console (F12 → Console)
-  console.log(`[fetchYahooQuote] ${ticker}`, {
-    price,
-    prev,
-    changeDollar: +changeDollar.toFixed(4),
-    changePct:    +changePct.toFixed(4),
-    source_price:  v10Result ? "v10" : "v8",
-    source_prev:   (v8Data?.result?.indicators?.quote?.[0]?.close ?? null) ? "v8-OHLC" : (v8Meta?.chartPreviousClose ? "v8-meta" : "v10/fallback"),
-    v8_closes:     (v8Data?.result?.indicators?.quote?.[0]?.close ?? []).slice(-3),
-    v8_chartPrevClose: v8Meta?.chartPreviousClose ?? null,
-    v10_prevClose:     v10Result?.regularMarketPreviousClose?.raw ?? null,
-  });
 
   const fiftyTwoWeekHigh = v10Result?.fiftyTwoWeekHigh?.raw ?? v8Meta?.fiftyTwoWeekHigh ?? null;
   const fiftyTwoWeekLow  = v10Result?.fiftyTwoWeekLow?.raw  ?? v8Meta?.fiftyTwoWeekLow  ?? null;
